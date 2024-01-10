@@ -1,9 +1,10 @@
 ----------------------------------------------------------------------------------
 -- MiSTer2MEGA65 Framework
 --
+-- VIC20 for MEGA65
 -- Configuration data for the Shell
 --
--- MiSTer2MEGA65 done by sy2002 and MJoergen in 2023 and licensed under GPL v3
+-- MiSTer2MEGA65 done by sy2002 and MJoergen in 2024 and licensed under GPL v3
 ----------------------------------------------------------------------------------
 
 library ieee;
@@ -76,79 +77,62 @@ type WHS_RECORD_ARRAY_TYPE is array (0 to WHS_RECORDS - 1) of WHS_RECORD_TYPE;
 
 constant SCR_WELCOME : string :=
 
-   "Name of the Demo Core Version 1.0\n" &
-   "MiSTer port done by Demo Author in 2022\n\n" &
-
-   -- We are not insisting. But it would be nice if you gave us credit for MiSTer2MEGA65 by leaving these lines in
-   "Powered by MiSTer2MEGA65 Version [WIP],\n" &
-   "done by sy2002 and MJoergen in 2022\n" &
-
-   "\n\nEdit config.vhd to modify welcome screen.\n\n" &
-   "You can for example show the keyboard map.\n" &
-   "Look at this example for the Demo core:\n\n\n" &
-
-   "    Key                Demo core\n" &
-   "    " & CHR_LINE_10 & CHR_LINE_10 & CHR_LINE_10 & CHR_LINE_1 & CHR_LINE_1 & "\n" &
-   "    Left Cursor        Paddle left\n" &
-   "    Right Cursor       Paddle right\n" &
-   "    Space              Start game\n" &
-   "    Help               Options menu\n\n\n" &
-
-   "\n\n    Press Space to continue.\n\n\n";
+   "\n" &
+   " VIC20 for MEGA65 Version 1.0\n" &
+   "\n" &
+   " MiSTer port 2024 by MJoergen\n" &
+   "\n" &
+   " Powered by MiSTer2MEGA65\n" &
+   "\n" &
+   "\n" &
+   "\n" &
+   " Press Space to continue.\n" &
+   "\n" &
+   "\n";
 
 constant HELP_1 : string :=
 
-   "\n Demo Core for MEGA65 Version 1\n\n" &
-
-   " MiSTer port 2022 by YOU\n" &
-   " Powered by MiSTer2MEGA65\n\n\n" &
-
-   " Lorem ipsum dolor sit amet, consetetur\n" &
-   " sadipscing elitr, sed diam nonumy eirmod\n" &
-   " Mpor invidunt ut labore et dolore magna\n" &
-   " aliquyam erat, sed diam voluptua. At vero\n" &
-   " eos et accusam et justo duo.\n\n" &
-
-   " Dolores et ea rebum. Stet clita kasd gube\n" &
-   " gren, no sea takimata sanctus est Lorem ip\n" &
-   " Sed diam nonumy eirmod tempor invidunt ut\n" &
-   " labore et dolore magna aliquyam era\n\n" &
-
+   "\n" &
+   " VIC20 Core for MEGA65 Version 1.0\n" &
+   "\n" &
+   " MiSTer port 2024 by MJoergen\n" &
+   " Powered by MiSTer2MEGA65\n" &
+   "\n" &
+   "\n" &
+   " Quickstart:\n" &
+   "\n" &
+   " * Create a /vic20 folder on your SD card\n" &
+   "\n" &
+   "\n" &
    " Cursor right to learn more.       (1 of 3)\n" &
    " Press Space to close the help screen.";
 
 constant HELP_2 : string :=
 
-   "\n Demo Core for MEGA65 Version 1\n\n" &
-
-   " XYZ ABCDEFGH:\n\n" &
-
-   " 1. ABCD EFGH\n" &
-   " 2. IJK LM NOPQ RSTUVWXYZ\n" &
-   " 3. 10 20 30 40 50\n\n" &
-
-   " a) Dolores et ea rebum\n" &
-   " b) Takimata sanctus est\n" &
-   " c) Tempor Invidunt ut\n" &
-   " d) Sed Diam Nonumy eirmod te\n" &
-   " e) Awesome\n\n" &
-
-   " Ut wisi enim ad minim veniam, quis nostru\n" &
-   " exerci tation ullamcorper suscipit lobor\n" &
-   " tis nisl ut aliquip ex ea commodo.\n\n" &
-
+   "\n" &
+   " VIC20 Core for MEGA65 Version 1.0\n" &
+   "\n" &
+   " When browsing the menu:\n" &
+   "\n" &
+   " Help:     Open/close menu\n" &
+   " Run/Stop: Leave sub-menu\n" &
+   " Settings are saved when closing the menu\n" &
+   "\n" &
+   " System reset:\n" &
+   "\n" &
+   " Press the reset button shortly to just\n" &
+   " reset the C64 core and press the button\n" &
+   " longer than 1.5s to reset the MEGA65.\n" &
+   " A short reset also restarts cartridges.\n" &
+   "\n" &
    " Crsr left: Prev  Crsr right: Next (2 of 3)\n" &
    " Press Space to close the help screen.";
 
 constant HELP_3 : string :=
 
-   "\n Help Screens\n\n" &
-
-   " You can have 255 screens per help topic.\n\n" &
-
-   " 15 topics overall.\n" &
-   " 1 menu item per topic.\n\n\n\n" &
-
+   "\n" &
+   " VIC20 Core for MEGA65 Version 1.0\n" &
+   "\n" &
    " Cursor left to go back.           (3 of 3)\n" &
    " Press Space to close the help screen.";
 
@@ -188,8 +172,8 @@ constant SEL_CFG_FILE      : std_logic_vector(15 downto 0) := x"0101";
 
 -- START YOUR CONFIGURATION BELOW THIS LINE
 
-constant DIR_START         : string := "/m2m";
-constant CFG_FILE          : string := "/m2m/m2mcfg";
+constant DIR_START         : string := "/vic20";
+constant CFG_FILE          : string := "/vic20/vic20mega65";
 
 --------------------------------------------------------------------------------------------------------------------
 -- General configuration settings: Reset, Pause, OSD behavior, Ascal, etc. (Selector 0x0110)
@@ -268,7 +252,7 @@ constant SEL_CORENAME      : std_logic_vector(15 downto 0) := x"0200";
 
 -- Currently this is only used in the debug console. Use the welcome screen and the
 -- help system to display the name and version of your core to the end user
-constant CORENAME          : string := "M2M DEMO CORE V1.0";
+constant CORENAME          : string := "VIC20 for MEGA65 Version 1.0";
 
 --------------------------------------------------------------------------------------------------------------------
 -- "Help" menu / Options menu  (Selectors 0x0300 .. 0x0312): DO NOT TOUCH
@@ -341,14 +325,14 @@ constant OPTM_DY           : natural := 24;
 
 constant OPTM_ITEMS        : string :=
 
-   " Demo Headline A\n"     &
+   " VIC20 for MEGA65\n"    &
    "\n"                     &
    " Item A.1\n"            &
    " Item A.2\n"            &
    " Item A.3\n"            &
    " Item A.4\n"            &
    "\n"                     &
-   " Demo Headline B\n"     &
+   " VIC20 Headline B\n"    &
    "\n"                     &
 
    " HDMI: %s\n"            &    -- HDMI submenu
@@ -384,7 +368,7 @@ constant OPTM_ITEMS        : string :=
 -- and be aware that you can only have a maximum of 254 groups (255 means "Close Menu");
 -- also make sure that your group numbers are monotonic increasing (e.g. 1, 2, 3, 4, ...)
 -- single-select items and therefore also drive mount items need to have unique identifiers
-constant OPTM_G_Demo_A     : integer := 1;
+constant OPTM_G_VIC20_A    : integer := 1;
 constant OPTM_G_HDMI       : integer := 2;
 constant OPTM_G_Drive_X    : integer := 3;
 constant OPTM_G_Drive_Y    : integer := 4;
@@ -399,14 +383,14 @@ type OPTM_GTYPE is array (0 to OPTM_SIZE - 1) of integer range 0 to 2**OPTM_GTC-
 -- define your menu groups: which menu items are belonging together to form a group?
 -- where are separator lines? which items should be selected by default?
 -- make sure that you have exactly the same amount of entries here than in OPTM_ITEMS and defined by OPTM_SIZE
-constant OPTM_GROUPS       : OPTM_GTYPE := ( OPTM_G_TEXT + OPTM_G_HEADLINE,            -- Headline "Demo Headline A"
+constant OPTM_GROUPS       : OPTM_GTYPE := ( OPTM_G_TEXT + OPTM_G_HEADLINE,            -- Headline "VIC20 Headline A"
                                              OPTM_G_LINE,                              -- Line
-                                             OPTM_G_Demo_A + OPTM_G_START,             -- Item A.1, cursor start position
-                                             OPTM_G_Demo_A + OPTM_G_STDSEL,            -- Item A.2, selected by default
-                                             OPTM_G_Demo_A,                            -- Item A.3
-                                             OPTM_G_Demo_A,                            -- Item A.4
+                                             OPTM_G_VIC20_A + OPTM_G_START,            -- Item A.1, cursor start position
+                                             OPTM_G_VIC20_A + OPTM_G_STDSEL,           -- Item A.2, selected by default
+                                             OPTM_G_VIC20_A,                           -- Item A.3
+                                             OPTM_G_VIC20_A,                           -- Item A.4
                                              OPTM_G_LINE,                              -- Line
-                                             OPTM_G_TEXT + OPTM_G_HEADLINE,            -- Headline "Demo Headline B"
+                                             OPTM_G_TEXT + OPTM_G_HEADLINE,            -- Headline "VIC20 Headline B"
                                              OPTM_G_LINE,                              -- Line
 
                                              OPTM_G_SUBMENU,                           -- HDMI submenu block: START: "HDMI: %s"

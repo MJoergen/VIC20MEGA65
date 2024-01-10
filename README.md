@@ -1,76 +1,52 @@
-MiSTer2MEGA65
-=============
+# [Commodore VIC-20](https://en.wikipedia.org/wiki/Commodore_VIC-20) for [MEGA65](https://github.com/sy2002/MiSTer2MEGA65/wiki)
+MiSTer port with enhancements by Sorgelig
 
-MiSTer2MEGA65 is a framework to simplify porting MiSTer cores to the MEGA65.
+Original VIC-20 core by [MikeJ (Mike Johnson)](https://www.fpgaarcade.com/author/mikej/) and [WoS (Wolfgang Scherr)](https://www.researchgate.net/profile/Wolfgang_Scherr2)
 
-![Title Image](doc/wiki/assets/MiSTer2MEGA65-Title.png)
+## Features
 
-Learn more by
-[watching this YouTube video](https://youtu.be/9Ib7z64z9N4)
-and get started by reading the
-[MiSTer2MEGA65 Wiki](https://github.com/sy2002/MiSTer2MEGA65/wiki).
+* Options for 3 extended RAM regions.
+* Automatic screen centering (many Vic20 games have off-center screen)
+* Support for *.PRG files.
+* Support for *.TAP files
+* Cartridge support with and without header.
+* Disk with write support (*.D64)
+* Partly/fully Loadable system ROM for C1541, Kernal and Basic.
+* Scandoubler with HQ2x and Scanlines
+* PAL/NTSC TV modes
+* Joystick support
 
-TL;DR
------
+## Instructions
 
-1. Scroll up and press the "Use this template" button to start a new
-   MiSTer2MEGA65 project. Then fork the MiSTer core you want to port
-   and make it a Git submodule of your newly created project.
+System ROM can be loaded from SD card. Put boot.rom into VIC20 folder.
+Content of boot.rom: C1541(16KB) + PAL kernal(8KB) + NTSC kernal(8KB)
+You can load only part of whole ROM, for example only C1541 + PAL kernal (JiffyDOS).
 
-2. Wrap the MiSTer core inside `CORE/vhdl/main.vhd` while
-   adjusting the clocks in `CORE/vhdl/clk.vhd`. Provide RAMs, ROMs and other
-   devices in `CORE/vhdl/mega65.vhd` and wire everything correctly.
+There are 2 ways to reset the VIC20:
+1. lctrl+lalt+ralt - cold reset with cartridge unloading - must be done before loading the new game!
+2. ctrl+f11 - reset the CPU with cartridge autostart at $A000
 
-3. Configure your core's behavior, including how the start screen looks like,
-   what ROMs should be loaded (and where to), the abilities of the
-   <kbd>Help</kbd> menu and more in `CORE/vhdl/config.vhd` and in
-   `CORE/vhdl/globals.vhd`.
+Commodore VIC-20 has very messy and confusing expansions, so you need to be familiar with this computer to know how to run different cartridges and correct RAM expansion for different games. Multi-part cartriges only add more mess. Some cartridges have loading address in the first 2 bytes, some haven't so you only can guess where to load the cart. Usually loading address is written in the file name.
 
-**DONE** your core is ported to MEGA65! :-)
+If the cartridge has one of these exact sizes: 2048, 4096, 8192, 16384 then it has no header.
+If the size is 2 bytes more than any of these sizes, then it has a header with a loading address.
 
-*Obviously, this is a shameless exaggeration of how easy it is to work with
-MiSTer2MEGA65, but you get the gist of it.*
+You can find many dumps of multipart carts as a single CRT files - in most cases these dumps won't work as these parts usually aren't loaded into connected regions and must be loaded separately.
 
-Getting started, detailed documentation and support
----------------------------------------------------
+The core supports following extensions:
+* .CRT - cartridges with header.
+* .CTx - cartridges without header where x is one of 2-9,A,B(CT2-CT9,CTA,CTB) symbols denoting the loading address 2000-9000, A000, B000
 
-* Please visit our official
-  [MiSTer2MEGA65 Wiki](https://github.com/sy2002/MiSTer2MEGA65/wiki). It
-  contains everything you ever wanted to know about M2M, including a
-  "Getting Started" tutorial and a step-by-step guide to port a MiSTer core.
-  You might whant to start your journey
-  [here](https://github.com/sy2002/MiSTer2MEGA65/wiki/1.-What-is-MiSTer2MEGA65)
-  and then follow the reading track that is pointed out in the
-  respective chapters.
+You won't find the cartridges with CTx extensions. All the cartridges you will find have a CRT extension regardless if they have the header or not. So you need to rename them accordingly if they are headerless.
 
-* Post a question in our
-  [Discussion Forum](https://github.com/sy2002/MiSTer2MEGA65/discussions).
+The best practice is to only use the carts with a header.
 
-Status of the framework
------------------------
+Since many cartridges are multi-part cartridges, there is no autostart procedure. You need to load all parts from OSD and if starting address is $A000(SYS 40960) then simply press CTRL+F11 to start. If starting address is different, then follow the instruction of the cartridge. Usually it's `SYS <address>` command.
 
-**The MiSTer2MEGA (M2M) framework is stable and ready for being used.**
-The first production quality core that is based on M2M is the
-[Commodore 64 for MEGA65](https://github.com/MJoergen/C64MEGA65).
-Additionally there is a
-[Galaga core](https://github.com/sho3string/GalagaMEGA65)
-and a work-in-progress
-[Apple II core](https://github.com/lydon42/Apple-II_MEGA65/tree/progress)
-based on M2M.
+RAM expansions aren't universal. Enabling all expansions won't automatically make the VIC-20 compatible with all games. So you need to find the info about that specific game's RAM requirements if it doesn't run. Or try different options.
 
-The documentation of the M2M framework needs quite some more work before
-we will be able to call it "good enough" - let alone complete:
-[MiSTer2MEGA65 Wiki](https://github.com/sy2002/MiSTer2MEGA65/wiki)
+Good luck while playing with this Zoo :)
 
-This should not discourage you from using the MiSTer2MEGA65 framework right
-now to port MiSTer cores and other cores to the MEGA65. You can use the
-source code of the
-[Commodore 64 for MEGA65](https://github.com/MJoergen/C64MEGA65)
-as your "user's manual" and "reference handbook" for the M2M framework.
 
-Additionally to helping yourself with the Wiki (and the turorials there) and
-the C64 source code as your "user's manual" and "reference handbook": Post
-your question in the
-[Discussion Forum](https://github.com/sy2002/MiSTer2MEGA65/discussions)
-and join the
-[friendly MEGA65 community on Discord](https://discord.com/channels/719326990221574164/1057791653517209601).
+**Sorgelig**
+

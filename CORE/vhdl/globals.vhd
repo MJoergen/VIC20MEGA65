@@ -40,8 +40,8 @@ constant QNICE_FIRMWARE           : string  := QNICE_FIRMWARE_M2M;
 -- then add all the clocks speeds here by adding more constants.
 ----------------------------------------------------------------------------------------------------------
 
--- @TODO: Your core's clock speed
-constant CORE_CLK_SPEED       : natural := 54_000_000;   -- @TODO YOURCORE expects 54 MHz
+-- VIC20 core clock speed
+constant CORE_CLK_SPEED       : natural := 35_463_000;   -- VIC20 core expects 35.463 MHz
 
 -- System clock speed (crystal that is driving the FPGA) and QNICE clock speed
 -- !!! Do not touch !!!
@@ -75,7 +75,7 @@ constant VRAM_ADDR_WIDTH      : natural := f_log2(CHAR_MEM_SIZE);
 ----------------------------------------------------------------------------------------------------------
 
 constant C_HMAP_M2M           : std_logic_vector(15 downto 0) := x"0000";     -- Reserved for the M2M framework
-constant C_HMAP_DEMO          : std_logic_vector(15 downto 0) := x"0200";     -- Start address reserved for core
+constant C_HMAP_VIC20         : std_logic_vector(15 downto 0) := x"0200";     -- Start address reserved for core
 
 ----------------------------------------------------------------------------------------------------------
 -- Virtual Drive Management System

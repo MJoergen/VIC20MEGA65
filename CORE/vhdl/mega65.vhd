@@ -233,15 +233,14 @@ signal video_rst              : std_logic;
 -- main_clk (MiSTer core's clock)
 ---------------------------------------------------------------------------------------------
 
+signal video_ce_d : std_logic;
+signal video_ce   : std_logic;
+
 ---------------------------------------------------------------------------------------------
 -- qnice_clk
 ---------------------------------------------------------------------------------------------
 
----------------------------------------------------------------------------------------------
--- Democore & example stuff: Delete before starting to port your own core
----------------------------------------------------------------------------------------------
-
--- Democore menu items
+-- Menu items
 constant C_MENU_HDMI_16_9_50   : natural := 12;
 constant C_MENU_HDMI_16_9_60   : natural := 13;
 constant C_MENU_HDMI_4_3_50    : natural := 14;
@@ -351,8 +350,8 @@ begin
 
          -- Video output
          -- This is PAL 720x576 @ 50 Hz (pixel clock 27 MHz), but synchronized to main_clk (54 MHz).
-         video_ce_o           => video_ce_o,
-         video_ce_ovl_o       => video_ce_ovl_o,
+         video_ce_o           => video_ce,
+         video_ce_ovl_o       => open,
          video_red_o          => video_red_o,
          video_green_o        => video_green_o,
          video_blue_o         => video_blue_o,
@@ -368,6 +367,18 @@ begin
          -- M2M Keyboard interface
          kb_key_num_i         => main_kb_key_num_i,
          kb_key_pressed_n_i   => main_kb_key_pressed_n_i,
+
+         iec_reset_n_o        => iec_reset_n_o,
+         iec_atn_n_o          => iec_atn_n_o,
+         iec_clk_en_o         => iec_clk_en_o,
+         iec_clk_n_i          => iec_clk_n_i,
+         iec_clk_n_o          => iec_clk_n_o,
+         iec_data_en_o        => iec_data_en_o,
+         iec_data_n_i         => iec_data_n_i,
+         iec_data_n_o         => iec_data_n_o,
+         iec_srq_en_o         => iec_srq_en_o,
+         iec_srq_n_i          => iec_srq_n_i,
+         iec_srq_n_o          => iec_srq_n_o,
 
          -- MEGA65 joysticks and paddles/mouse/potentiometers
          joy_1_up_n_i         => main_joy_1_up_n_i ,
@@ -387,6 +398,18 @@ begin
          pot2_x_i             => main_pot2_x_i,
          pot2_y_i             => main_pot2_y_i
       ); -- i_main
+
+   video_ce_proc : process (video_clk)
+   begin
+      if rising_edge(video_clk) then
+         video_ce_d <= video_ce;
+         video_ce_o <= video_ce and not video_ce_d;
+      end if;
+   end process video_ce_proc;
+
+   video_ce_ovl_o <= video_ce_o;
+
+
 
    ---------------------------------------------------------------------------------------------
    -- Audio and video settings (QNICE clock domain)
@@ -410,7 +433,7 @@ begin
    -- Use On-Screen-Menu selections to configure several audio and video settings
    -- Video and audio mode control
    qnice_dvi_o                <= '0';                                         -- 0=HDMI (with sound), 1=DVI (no sound)
-   qnice_scandoubler_o        <= '0';                                         -- no scandoubler
+   qnice_scandoubler_o        <= '1';                                         -- no scandoubler
    qnice_audio_mute_o         <= '0';                                         -- audio is not muted
    qnice_audio_filter_o       <= qnice_osm_control_i(C_MENU_IMPROVE_AUDIO);   -- 0 = raw audio, 1 = use filters from globals.vhd
    qnice_zoom_crop_o          <= qnice_osm_control_i(C_MENU_HDMI_ZOOM);       -- 0 = no zoom/crop
