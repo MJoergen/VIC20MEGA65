@@ -71,40 +71,101 @@ architecture synthesis of main is
 -- @TODO: Remove these demo core signals
 signal keyboard_n          : std_logic_vector(79 downto 0);
 
+signal      o_p2h        : std_logic;
+signal      atn_o        : std_logic; -- open drain
+signal      clk_o        : std_logic; -- open drain
+signal      clk_i        : std_logic;
+signal      data_o       : std_logic; -- open drain
+signal      data_i       : std_logic;
+signal      i_joy        : std_logic_vector(3 downto 0); -- 0 up, 1 down, 2 left,  3 right
+signal      i_fire       : std_logic;                    -- all low active
+signal      i_potx       : std_logic_vector(7 downto 0);
+signal      i_poty       : std_logic_vector(7 downto 0);
+signal      i_ram_ext_ro : std_logic_vector(4 downto 0); -- read-only region if set
+signal      i_ram_ext    : std_logic_vector(4 downto 0); -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
+signal      i_extmem_en  : std_logic;
+signal      o_extmem_sel : std_logic;
+signal      o_extmem_r_wn: std_logic;
+signal      o_extmem_addr: std_logic_vector(15 downto 0);
+signal      i_extmem_data: std_logic_vector(7 downto 0);
+signal      o_extmem_data: std_logic_vector(7 downto 0);
+signal      o_io2_sel    : std_logic;
+signal      o_io3_sel    : std_logic;
+signal      o_blk123_sel : std_logic;
+signal      o_blk5_sel   : std_logic;
+signal      o_ram123_sel : std_logic;
+signal      o_ce_pix     : std_logic;
+signal      i_center     : std_logic_vector(1 downto 0);
+signal      i_pal        : std_logic;
+signal      i_wide       : std_logic;
+signal      ps2_key      : std_logic_vector(10 downto 0);
+signal      tape_play    : std_logic;
+signal      o_audio      : std_logic_vector(5 downto 0);
+signal      cass_write   : std_logic;
+signal      cass_read    : std_logic;
+signal      cass_motor   : std_logic;
+signal      cass_sw      : std_logic;
+signal      rom_std      : std_logic;
+signal      conf_clk     : std_logic;
+signal      conf_wr      : std_logic;
+signal      conf_ai      : std_logic_vector(15 downto 0);
+signal      conf_di      : std_logic_vector(7 downto 0);
+
 begin
 
-   -- @TODO: Add the actual MiSTer core here
-   -- The demo core's purpose is to show a test image and to make sure, that the MiSTer2MEGA65 framework
-   -- can be synthesized and run stand-alone without an actual MiSTer core being there, yet
-   i_democore : entity work.democore
-      port map (
-         clk_main_i           => clk_main_i,
+core_inst : entity work.VIC20
+   port map (
+      i_sysclk      => clk_main_i,
+      i_sysclk_en   => '1',
+      i_reset       => reset_soft_i or reset_hard_i,
+      o_p2h         => o_p2h        ,
+      atn_o         => atn_o        ,
+      clk_o         => clk_o        ,
+      clk_i         => clk_i        ,
+      data_o        => data_o       ,
+      data_i        => data_i       ,
+      i_joy         => i_joy        ,
+      i_fire        => i_fire       ,
+      i_potx        => i_potx       ,
+      i_poty        => i_poty       ,
+      i_ram_ext_ro  => i_ram_ext_ro ,
+      i_ram_ext     => i_ram_ext    ,
+      i_extmem_en   => i_extmem_en  ,
+      o_extmem_sel  => o_extmem_sel ,
+      o_extmem_r_wn => o_extmem_r_wn,
+      o_extmem_addr => o_extmem_addr,
+      i_extmem_data => i_extmem_data,
+      o_extmem_data => o_extmem_data,
+      o_io2_sel     => o_io2_sel    ,
+      o_io3_sel     => o_io3_sel    ,
+      o_blk123_sel  => o_blk123_sel ,
+      o_blk5_sel    => o_blk5_sel   ,
+      o_ram123_sel  => o_ram123_sel ,
+      o_ce_pix      => video_ce_o,
+      o_video_r     => video_red_o(7 downto 4),
+      o_video_g     => video_green_o(7 downto 4),
+      o_video_b     => video_blue_o(7 downto 4),
+      o_hsync       => video_hs_o,
+      o_vsync       => video_vs_o,
+      o_hblank      => video_hblank_o,
+      o_vblank      => video_vblank_o,
+      i_center      => i_center     ,
+      i_pal         => i_pal        ,
+      i_wide        => i_wide       ,
+      ps2_key       => ps2_key      ,
+      tape_play     => tape_play    ,
+      o_audio       => o_audio      ,
+      cass_write    => cass_write   ,
+      cass_read     => cass_read    ,
+      cass_motor    => cass_motor   ,
+      cass_sw       => cass_sw      ,
+      rom_std       => rom_std      ,
+      conf_clk      => conf_clk     ,
+      conf_wr       => conf_wr      ,
+      conf_ai       => conf_ai      ,
+      conf_di       => conf_di
+   );
 
-         reset_i              => reset_soft_i or reset_hard_i,       -- long and short press of reset button mean the same
-         pause_i              => pause_i,
-
-         ball_col_rgb_i       => x"EE4020",                          -- ball color (RGB): orange
-         paddle_speed_i       => x"1",                               -- paddle speed is about 50 pixels / sec (due to 50 Hz)
-
-         keyboard_n_i         => keyboard_n,                         -- move the paddle with the cursor left/right keys...
-         joy_up_n_i           => joy_1_up_n_i,                       -- ... or move the paddle with a joystick in port #1
-         joy_down_n_i         => joy_1_down_n_i,
-         joy_left_n_i         => joy_1_left_n_i,
-         joy_right_n_i        => joy_1_right_n_i,
-         joy_fire_n_i         => joy_1_fire_n_i,
-
-         vga_ce_o             => video_ce_o,
-         vga_red_o            => video_red_o,
-         vga_green_o          => video_green_o,
-         vga_blue_o           => video_blue_o,
-         vga_vs_o             => video_vs_o,
-         vga_hs_o             => video_hs_o,
-         vga_hblank_o         => video_hblank_o,
-         vga_vblank_o         => video_vblank_o,
-
-         audio_left_o         => audio_left_o,
-         audio_right_o        => audio_right_o
-      ); -- i_democore
 
    -- On video_ce_o and video_ce_ovl_o: You have an important @TODO when porting a core:
    -- video_ce_o: You need to make sure that video_ce_o divides clk_main_i such that it transforms clk_main_i
