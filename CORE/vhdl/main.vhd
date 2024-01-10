@@ -7,164 +7,164 @@
 ----------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+   use ieee.std_logic_1164.all;
+   use ieee.numeric_std.all;
 
 library work;
-use work.video_modes_pkg.all;
+   use work.video_modes_pkg.all;
 
 entity main is
    generic (
-      G_VDNUM                 : natural                     -- amount of virtual drives
+      G_VDNUM : natural -- amount of virtual drives
    );
    port (
-      clk_main_i              : in  std_logic;
-      reset_soft_i            : in  std_logic;
-      reset_hard_i            : in  std_logic;
-      pause_i                 : in  std_logic;
+      clk_main_i         : in    std_logic;
+      reset_soft_i       : in    std_logic;
+      reset_hard_i       : in    std_logic;
+      pause_i            : in    std_logic;
 
       -- MiSTer core main clock speed:
       -- Make sure you pass very exact numbers here, because they are used for avoiding clock drift at derived clocks
-      clk_main_speed_i        : in  natural;
+      clk_main_speed_i   : in    natural;
 
       -- Video output
-      video_ce_o              : out std_logic;
-      video_ce_ovl_o          : out std_logic;
-      video_red_o             : out std_logic_vector(7 downto 0);
-      video_green_o           : out std_logic_vector(7 downto 0);
-      video_blue_o            : out std_logic_vector(7 downto 0);
-      video_vs_o              : out std_logic;
-      video_hs_o              : out std_logic;
-      video_hblank_o          : out std_logic;
-      video_vblank_o          : out std_logic;
+      video_ce_o         : out   std_logic;
+      video_ce_ovl_o     : out   std_logic;
+      video_red_o        : out   std_logic_vector(7 downto 0);
+      video_green_o      : out   std_logic_vector(7 downto 0);
+      video_blue_o       : out   std_logic_vector(7 downto 0);
+      video_vs_o         : out   std_logic;
+      video_hs_o         : out   std_logic;
+      video_hblank_o     : out   std_logic;
+      video_vblank_o     : out   std_logic;
 
       -- Audio output (Signed PCM)
-      audio_left_o            : out signed(15 downto 0);
-      audio_right_o           : out signed(15 downto 0);
+      audio_left_o       : out   signed(15 downto 0);
+      audio_right_o      : out   signed(15 downto 0);
 
       -- M2M Keyboard interface
-      kb_key_num_i            : in  integer range 0 to 79;    -- cycles through all MEGA65 keys
-      kb_key_pressed_n_i      : in  std_logic;                -- low active: debounced feedback: is kb_key_num_i pressed right now?
+      kb_key_num_i       : in    integer range 0 to 79; -- cycles through all MEGA65 keys
+      kb_key_pressed_n_i : in    std_logic;             -- low active: debounced feedback: is kb_key_num_i pressed right now?
 
       -- MEGA65 joysticks and paddles/mouse/potentiometers
-      joy_1_up_n_i            : in  std_logic;
-      joy_1_down_n_i          : in  std_logic;
-      joy_1_left_n_i          : in  std_logic;
-      joy_1_right_n_i         : in  std_logic;
-      joy_1_fire_n_i          : in  std_logic;
+      joy_1_up_n_i       : in    std_logic;
+      joy_1_down_n_i     : in    std_logic;
+      joy_1_left_n_i     : in    std_logic;
+      joy_1_right_n_i    : in    std_logic;
+      joy_1_fire_n_i     : in    std_logic;
 
-      joy_2_up_n_i            : in  std_logic;
-      joy_2_down_n_i          : in  std_logic;
-      joy_2_left_n_i          : in  std_logic;
-      joy_2_right_n_i         : in  std_logic;
-      joy_2_fire_n_i          : in  std_logic;
+      joy_2_up_n_i       : in    std_logic;
+      joy_2_down_n_i     : in    std_logic;
+      joy_2_left_n_i     : in    std_logic;
+      joy_2_right_n_i    : in    std_logic;
+      joy_2_fire_n_i     : in    std_logic;
 
-      pot1_x_i                : in  std_logic_vector(7 downto 0);
-      pot1_y_i                : in  std_logic_vector(7 downto 0);
-      pot2_x_i                : in  std_logic_vector(7 downto 0);
-      pot2_y_i                : in  std_logic_vector(7 downto 0)
+      pot1_x_i           : in    std_logic_vector(7 downto 0);
+      pot1_y_i           : in    std_logic_vector(7 downto 0);
+      pot2_x_i           : in    std_logic_vector(7 downto 0);
+      pot2_y_i           : in    std_logic_vector(7 downto 0)
    );
 end entity main;
 
 architecture synthesis of main is
 
--- @TODO: Remove these demo core signals
-signal keyboard_n          : std_logic_vector(79 downto 0);
+   -- @TODO: Remove these demo core signals
+   signal keyboard_n : std_logic_vector(79 downto 0);
 
-signal      o_p2h        : std_logic;
-signal      atn_o        : std_logic; -- open drain
-signal      clk_o        : std_logic; -- open drain
-signal      clk_i        : std_logic;
-signal      data_o       : std_logic; -- open drain
-signal      data_i       : std_logic;
-signal      i_joy        : std_logic_vector(3 downto 0); -- 0 up, 1 down, 2 left,  3 right
-signal      i_fire       : std_logic;                    -- all low active
-signal      i_potx       : std_logic_vector(7 downto 0);
-signal      i_poty       : std_logic_vector(7 downto 0);
-signal      i_ram_ext_ro : std_logic_vector(4 downto 0); -- read-only region if set
-signal      i_ram_ext    : std_logic_vector(4 downto 0); -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
-signal      i_extmem_en  : std_logic;
-signal      o_extmem_sel : std_logic;
-signal      o_extmem_r_wn: std_logic;
-signal      o_extmem_addr: std_logic_vector(15 downto 0);
-signal      i_extmem_data: std_logic_vector(7 downto 0);
-signal      o_extmem_data: std_logic_vector(7 downto 0);
-signal      o_io2_sel    : std_logic;
-signal      o_io3_sel    : std_logic;
-signal      o_blk123_sel : std_logic;
-signal      o_blk5_sel   : std_logic;
-signal      o_ram123_sel : std_logic;
-signal      o_ce_pix     : std_logic;
-signal      i_center     : std_logic_vector(1 downto 0);
-signal      i_pal        : std_logic;
-signal      i_wide       : std_logic;
-signal      ps2_key      : std_logic_vector(10 downto 0);
-signal      tape_play    : std_logic;
-signal      o_audio      : std_logic_vector(5 downto 0);
-signal      cass_write   : std_logic;
-signal      cass_read    : std_logic;
-signal      cass_motor   : std_logic;
-signal      cass_sw      : std_logic;
-signal      rom_std      : std_logic;
-signal      conf_clk     : std_logic;
-signal      conf_wr      : std_logic;
-signal      conf_ai      : std_logic_vector(15 downto 0);
-signal      conf_di      : std_logic_vector(7 downto 0);
+   signal o_p2h         : std_logic;
+   signal atn_o         : std_logic;                    -- open drain
+   signal clk_o         : std_logic;                    -- open drain
+   signal clk_i         : std_logic;
+   signal data_o        : std_logic;                    -- open drain
+   signal data_i        : std_logic;
+   signal i_joy         : std_logic_vector(3 downto 0); -- 0 up, 1 down, 2 left,  3 right
+   signal i_fire        : std_logic;                    -- all low active
+   signal i_potx        : std_logic_vector(7 downto 0);
+   signal i_poty        : std_logic_vector(7 downto 0);
+   signal i_ram_ext_ro  : std_logic_vector(4 downto 0); -- read-only region if set
+   signal i_ram_ext     : std_logic_vector(4 downto 0); -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
+   signal i_extmem_en   : std_logic;
+   signal o_extmem_sel  : std_logic;
+   signal o_extmem_r_wn : std_logic;
+   signal o_extmem_addr : std_logic_vector(15 downto 0);
+   signal i_extmem_data : std_logic_vector(7 downto 0);
+   signal o_extmem_data : std_logic_vector(7 downto 0);
+   signal o_io2_sel     : std_logic;
+   signal o_io3_sel     : std_logic;
+   signal o_blk123_sel  : std_logic;
+   signal o_blk5_sel    : std_logic;
+   signal o_ram123_sel  : std_logic;
+   signal o_ce_pix      : std_logic;
+   signal i_center      : std_logic_vector(1 downto 0);
+   signal i_pal         : std_logic;
+   signal i_wide        : std_logic;
+   signal ps2_key       : std_logic_vector(10 downto 0);
+   signal tape_play     : std_logic;
+   signal o_audio       : std_logic_vector(5 downto 0);
+   signal cass_write    : std_logic;
+   signal cass_read     : std_logic;
+   signal cass_motor    : std_logic;
+   signal cass_sw       : std_logic;
+   signal rom_std       : std_logic;
+   signal conf_clk      : std_logic;
+   signal conf_wr       : std_logic;
+   signal conf_ai       : std_logic_vector(15 downto 0);
+   signal conf_di       : std_logic_vector(7 downto 0);
 
 begin
 
-core_inst : entity work.VIC20
-   port map (
-      i_sysclk      => clk_main_i,
-      i_sysclk_en   => '1',
-      i_reset       => reset_soft_i or reset_hard_i,
-      o_p2h         => o_p2h        ,
-      atn_o         => atn_o        ,
-      clk_o         => clk_o        ,
-      clk_i         => clk_i        ,
-      data_o        => data_o       ,
-      data_i        => data_i       ,
-      i_joy         => i_joy        ,
-      i_fire        => i_fire       ,
-      i_potx        => i_potx       ,
-      i_poty        => i_poty       ,
-      i_ram_ext_ro  => i_ram_ext_ro ,
-      i_ram_ext     => i_ram_ext    ,
-      i_extmem_en   => i_extmem_en  ,
-      o_extmem_sel  => o_extmem_sel ,
-      o_extmem_r_wn => o_extmem_r_wn,
-      o_extmem_addr => o_extmem_addr,
-      i_extmem_data => i_extmem_data,
-      o_extmem_data => o_extmem_data,
-      o_io2_sel     => o_io2_sel    ,
-      o_io3_sel     => o_io3_sel    ,
-      o_blk123_sel  => o_blk123_sel ,
-      o_blk5_sel    => o_blk5_sel   ,
-      o_ram123_sel  => o_ram123_sel ,
-      o_ce_pix      => video_ce_o,
-      o_video_r     => video_red_o(7 downto 4),
-      o_video_g     => video_green_o(7 downto 4),
-      o_video_b     => video_blue_o(7 downto 4),
-      o_hsync       => video_hs_o,
-      o_vsync       => video_vs_o,
-      o_hblank      => video_hblank_o,
-      o_vblank      => video_vblank_o,
-      i_center      => i_center     ,
-      i_pal         => i_pal        ,
-      i_wide        => i_wide       ,
-      ps2_key       => ps2_key      ,
-      tape_play     => tape_play    ,
-      o_audio       => o_audio      ,
-      cass_write    => cass_write   ,
-      cass_read     => cass_read    ,
-      cass_motor    => cass_motor   ,
-      cass_sw       => cass_sw      ,
-      rom_std       => rom_std      ,
-      conf_clk      => conf_clk     ,
-      conf_wr       => conf_wr      ,
-      conf_ai       => conf_ai      ,
-      conf_di       => conf_di
-   );
+   core_inst : entity work.vic20
+      port map (
+         i_sysclk      => clk_main_i,
+         i_sysclk_en   => '1',
+         i_reset       => reset_soft_i or reset_hard_i,
+         o_p2h         => o_p2h,
+         atn_o         => atn_o,
+         clk_o         => clk_o,
+         clk_i         => clk_i,
+         data_o        => data_o,
+         data_i        => data_i,
+         i_joy         => i_joy,
+         i_fire        => i_fire,
+         i_potx        => i_potx,
+         i_poty        => i_poty,
+         i_ram_ext_ro  => i_ram_ext_ro,
+         i_ram_ext     => i_ram_ext,
+         i_extmem_en   => i_extmem_en,
+         o_extmem_sel  => o_extmem_sel,
+         o_extmem_r_wn => o_extmem_r_wn,
+         o_extmem_addr => o_extmem_addr,
+         i_extmem_data => i_extmem_data,
+         o_extmem_data => o_extmem_data,
+         o_io2_sel     => o_io2_sel,
+         o_io3_sel     => o_io3_sel,
+         o_blk123_sel  => o_blk123_sel,
+         o_blk5_sel    => o_blk5_sel,
+         o_ram123_sel  => o_ram123_sel,
+         o_ce_pix      => video_ce_o,
+         o_video_r     => video_red_o(7 downto 4),
+         o_video_g     => video_green_o(7 downto 4),
+         o_video_b     => video_blue_o(7 downto 4),
+         o_hsync       => video_hs_o,
+         o_vsync       => video_vs_o,
+         o_hblank      => video_hblank_o,
+         o_vblank      => video_vblank_o,
+         i_center      => i_center,
+         i_pal         => i_pal,
+         i_wide        => i_wide,
+         ps2_key       => ps2_key,
+         tape_play     => tape_play,
+         o_audio       => o_audio,
+         cass_write    => cass_write,
+         cass_read     => cass_read,
+         cass_motor    => cass_motor,
+         cass_sw       => cass_sw,
+         rom_std       => rom_std,
+         conf_clk      => conf_clk,
+         conf_wr       => conf_wr,
+         conf_ai       => conf_ai,
+         conf_di       => conf_di
+      );
 
 
    -- On video_ce_o and video_ce_ovl_o: You have an important @TODO when porting a core:
@@ -183,21 +183,21 @@ core_inst : entity work.VIC20
    -- might need small high-active keyboard memories, etc. This is why the MiSTer2MEGA65 framework
    -- lets you define literally everything and only provides a minimal abstraction layer to the keyboard.
    -- You need to adjust keyboard.vhd to your needs
-   i_keyboard : entity work.keyboard
+   keyboard_inst : entity work.keyboard
       port map (
-         clk_main_i           => clk_main_i,
+         clk_main_i      => clk_main_i,
 
          -- Interface to the MEGA65 keyboard
-         key_num_i            => kb_key_num_i,
-         key_pressed_n_i      => kb_key_pressed_n_i,
+         key_num_i       => kb_key_num_i,
+         key_pressed_n_i => kb_key_pressed_n_i,
 
          -- @TODO: Create the kind of keyboard output that your core needs
          -- "example_n_o" is a low active register and used by the demo core:
          --    bit 0: Space
          --    bit 1: Return
          --    bit 2: Run/Stop
-         example_n_o          => keyboard_n
-      ); -- i_keyboard
+         example_n_o     => keyboard_n
+      ); -- keyboard_inst
 
 end architecture synthesis;
 
