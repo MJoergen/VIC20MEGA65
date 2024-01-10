@@ -226,6 +226,8 @@ architecture synthesis of MEGA65_Core is
 
 signal main_clk               : std_logic;               -- Core main clock
 signal main_rst               : std_logic;
+signal video_clk              : std_logic;               -- Core video clock
+signal video_rst              : std_logic;
 
 ---------------------------------------------------------------------------------------------
 -- main_clk (MiSTer core's clock)
@@ -314,14 +316,16 @@ begin
    clk_gen : entity work.clk
       port map (
          sys_clk_i         => CLK,             -- expects 100 MHz
-         main_clk_o        => main_clk,        -- CORE's 54 MHz clock
+         video_clk_o       => video_clk,       -- VIDEO's 70.926 MHz clock
+         video_rst_o       => video_rst,       -- VIDEO's reset, synchronized
+         main_clk_o        => main_clk,        -- CORE's 35.463 MHz clock
          main_rst_o        => main_rst         -- CORE's reset, synchronized
       ); -- clk_gen
 
    main_clk_o  <= main_clk;
    main_rst_o  <= main_rst;
-   video_clk_o <= main_clk;
-   video_rst_o <= main_rst;
+   video_clk_o <= video_clk;
+   video_rst_o <= video_rst;
 
    ---------------------------------------------------------------------------------------------
    -- main_clk (MiSTer core's clock)

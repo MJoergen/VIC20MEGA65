@@ -111,12 +111,24 @@ architecture synthesis of main is
    signal conf_ai       : std_logic_vector(15 downto 0);
    signal conf_di       : std_logic_vector(7 downto 0);
 
+   signal v20_en        : std_logic;
+
 begin
+
+   process (clk_main_i)
+      variable div_v : unsigned(1 downto 0);
+   begin
+      if falling_edge(clk_main_i) then
+         div_v := div_v + 1;
+         v20_en <= and(div_v);
+      end if;
+   end process;
+
 
    core_inst : entity work.vic20
       port map (
          i_sysclk      => clk_main_i,
-         i_sysclk_en   => '1',
+         i_sysclk_en   => v20_en,
          i_reset       => reset_soft_i or reset_hard_i,
          o_p2h         => o_p2h,
          atn_o         => atn_o,

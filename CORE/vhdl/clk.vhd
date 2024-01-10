@@ -3,8 +3,6 @@
 --
 -- Clock Generator using the Xilinx specific MMCME2_ADV:
 --
---   @TODO YOURCORE expects 54 MHz
---
 -- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022 and licensed under GPL v3
 -------------------------------------------------------------------------------------------------------------
 
@@ -21,8 +19,10 @@ entity clk is
    port (
       sys_clk_i       : in  std_logic;   -- expects 100 MHz
 
-      main_clk_o      : out std_logic;   -- main's @TODO 54 MHz main clock
-      main_rst_o      : out std_logic    -- main's reset, synchronized
+      main_clk_o      : out std_logic;   -- main's 35.468944 MHz main clock
+      main_rst_o      : out std_logic;   -- main's reset, synchronized
+      video_clk_o     : out std_logic;   -- video's 70.937888 MHz main clock
+      video_rst_o     : out std_logic    -- video's reset, synchronized
    );
 end entity clk;
 
@@ -35,6 +35,7 @@ signal clkfb2_mmcm        : std_logic;
 signal clkfb3             : std_logic;
 signal clkfb3_mmcm        : std_logic;
 signal main_clk_mmcm      : std_logic;
+signal video_clk_mmcm     : std_logic;
 
 signal main_locked        : std_logic;
 
@@ -52,19 +53,24 @@ begin
          STARTUP_WAIT         => FALSE,
          CLKIN1_PERIOD        => 10.0,       -- INPUT @ 100 MHz
          REF_JITTER1          => 0.010,
-         DIVCLK_DIVIDE        => 1,
-         CLKFBOUT_MULT_F      => 6.750,      -- 675 MHz
+         DIVCLK_DIVIDE        => 5,
+         CLKFBOUT_MULT_F      => 47.875,     -- 957.5 MHz
          CLKFBOUT_PHASE       => 0.000,
          CLKFBOUT_USE_FINE_PS => FALSE,
-         CLKOUT0_DIVIDE_F     => 12.500,     -- 54 MHz
+         CLKOUT0_DIVIDE_F     => 13.500,     -- 70.926 MHz
          CLKOUT0_PHASE        => 0.000,
          CLKOUT0_DUTY_CYCLE   => 0.500,
-         CLKOUT0_USE_FINE_PS  => FALSE
+         CLKOUT0_USE_FINE_PS  => FALSE,
+         CLKOUT1_DIVIDE       => 27,         -- 35.463 MHz
+         CLKOUT1_PHASE        => 0.000,
+         CLKOUT1_DUTY_CYCLE   => 0.500,
+         CLKOUT1_USE_FINE_PS  => FALSE
       )
       port map (
          -- Output clocks
          CLKFBOUT            => clkfb3_mmcm,
-         CLKOUT0             => main_clk_mmcm,
+         CLKOUT0             => video_clk_mmcm,
+         CLKOUT1             => main_clk_mmcm,
          -- Input clock control
          CLKFBIN             => clkfb3,
          CLKIN1              => sys_clk_i,
@@ -102,6 +108,12 @@ begin
          O => clkfb3
       );
 
+   video_clk_bufg : BUFG
+      port map (
+         I => video_clk_mmcm,
+         O => video_clk_o
+      );
+
    main_clk_bufg : BUFG
       port map (
          I => main_clk_mmcm,
@@ -121,6 +133,18 @@ begin
          src_arst  => not main_locked,   -- 1-bit input: Source reset signal.
          dest_clk  => main_clk_o,        -- 1-bit input: Destination clock.
          dest_arst => main_rst_o         -- 1-bit output: src_rst synchronized to the destination clock domain.
+                                         -- This output is registered.
+      );
+
+   i_xpm_cdc_async_rst_video : xpm_cdc_async_rst
+      generic map (
+         RST_ACTIVE_HIGH => 1,
+         DEST_SYNC_FF    => 6
+      )
+      port map (
+         src_arst  => not main_locked,   -- 1-bit input: Source reset signal.
+         dest_clk  => video_clk_o,       -- 1-bit input: Destination clock.
+         dest_arst => video_rst_o        -- 1-bit output: src_rst synchronized to the destination clock domain.
                                          -- This output is registered.
       );
 
