@@ -19,6 +19,7 @@ entity main is
    );
    port (
       clk_main_i         : in    std_logic;
+      clk_video_i        : in    std_logic;
       reset_soft_i       : in    std_logic;
       reset_hard_i       : in    std_logic;
       pause_i            : in    std_logic;
@@ -115,6 +116,10 @@ architecture synthesis of main is
 
    signal div           : unsigned(1 downto 0);
    signal v20_en        : std_logic;
+   signal div_ovl       : unsigned(1 downto 0);
+
+   signal video_ce      : std_logic;
+   signal video_ce_d    : std_logic;
 
 begin
 
@@ -128,6 +133,19 @@ begin
          v20_en <= and(div);
       end if;
    end process v20_en_proc;
+
+   video_ce_proc : process (clk_video_i)
+   begin
+      if rising_edge(clk_video_i) then
+         video_ce_d <= video_ce;
+         video_ce_o <= video_ce and not video_ce_d;
+
+         div_ovl <= div_ovl + 1;
+         video_ce_ovl_o <= and(div_ovl);
+      end if;
+   end process video_ce_proc;
+
+
 
    core_inst : entity work.vic20
       port map (
@@ -157,7 +175,7 @@ begin
          o_blk123_sel  => o_blk123_sel,
          o_blk5_sel    => o_blk5_sel,
          o_ram123_sel  => o_ram123_sel,
-         o_ce_pix      => video_ce_o,
+         o_ce_pix      => video_ce,
          o_video_r     => video_red_o(7 downto 4),
          o_video_g     => video_green_o(7 downto 4),
          o_video_b     => video_blue_o(7 downto 4),
@@ -192,7 +210,6 @@ begin
    --             resolution specified by VGA_DX/VGA_DY (globals.vhd)
    -- video_retro15kHz_o: '1', if the output from the core (post-scandoubler) in the retro 15 kHz analog RGB mode.
    --             Hint: Scandoubler off does not automatically mean retro 15 kHz on.
-   video_ce_ovl_o <= video_ce_o;
 
    -- @TODO: Keyboard mapping and keyboard behavior
    -- Each core is treating the keyboard in a different way: Some need low-active "matrices", some

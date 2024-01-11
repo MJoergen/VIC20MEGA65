@@ -233,9 +233,6 @@ signal video_rst              : std_logic;
 -- main_clk (MiSTer core's clock)
 ---------------------------------------------------------------------------------------------
 
-signal video_ce_d : std_logic;
-signal video_ce   : std_logic;
-
 ---------------------------------------------------------------------------------------------
 -- qnice_clk
 ---------------------------------------------------------------------------------------------
@@ -342,6 +339,7 @@ begin
       )
       port map (
          clk_main_i           => main_clk,
+         clk_video_i          => video_clk,
          reset_soft_i         => main_reset_core_i,
          reset_hard_i         => main_reset_m2m_i,
          pause_i              => main_pause_core_i,
@@ -350,8 +348,8 @@ begin
 
          -- Video output
          -- This is PAL 720x576 @ 50 Hz (pixel clock 27 MHz), but synchronized to main_clk (54 MHz).
-         video_ce_o           => video_ce,
-         video_ce_ovl_o       => open,
+         video_ce_o           => video_ce_o,
+         video_ce_ovl_o       => video_ce_ovl_o,
          video_red_o          => video_red_o,
          video_green_o        => video_green_o,
          video_blue_o         => video_blue_o,
@@ -398,16 +396,6 @@ begin
          pot2_x_i             => main_pot2_x_i,
          pot2_y_i             => main_pot2_y_i
       ); -- i_main
-
-   video_ce_proc : process (video_clk)
-   begin
-      if rising_edge(video_clk) then
-         video_ce_d <= video_ce;
-         video_ce_o <= video_ce and not video_ce_d;
-      end if;
-   end process video_ce_proc;
-
-   video_ce_ovl_o <= video_ce_o;
 
 
 
