@@ -98,8 +98,6 @@ architecture synthesis of main is
    signal o_blk123_sel  : std_logic;
    signal o_blk5_sel    : std_logic;
    signal o_ram123_sel  : std_logic;
-   signal i_center      : std_logic_vector(1 downto 0);
-   signal i_wide        : std_logic;
    signal tape_play     : std_logic;
    signal o_audio       : std_logic_vector(5 downto 0);
    signal cass_write    : std_logic;
@@ -115,7 +113,7 @@ architecture synthesis of main is
 
    signal div           : unsigned(1 downto 0);
    signal v20_en        : std_logic;
-   signal div_ovl       : unsigned(1 downto 0);
+   signal div_ovl       : unsigned(0 downto 0);
 
    signal video_ce      : std_logic;
    signal video_ce_d    : std_logic;
@@ -149,9 +147,10 @@ begin
       end if;
    end process video_ce_proc;
 
+   audio_left_o  <= signed("0" & o_audio & "000000000");
+   audio_right_o <= signed("0" & o_audio & "000000000");
 
-
-   core_inst : entity work.vic20
+   vic20_inst : entity work.vic20
       port map (
          i_sysclk      => clk_main_i,
          i_sysclk_en   => v20_en,
@@ -187,9 +186,9 @@ begin
          o_vsync       => o_vsync,
          o_hblank      => video_hblank_o,
          o_vblank      => video_vblank_o,
-         i_center      => i_center,
+         i_center      => "11",
          i_pal         => '1',
-         i_wide        => i_wide,
+         i_wide        => '0',
          cia1_pa_i     => cia1_pa_in(0) & cia1_pa_in(6 downto 1) & cia1_pa_in(7),
          cia1_pa_o     => cia1_pa_out,
          cia1_pb_i     => cia1_pb_in(3) & cia1_pb_in(6 downto 4) & cia1_pb_in(7) & cia1_pb_in(2 downto 0),
@@ -205,24 +204,8 @@ begin
          conf_wr       => conf_wr,
          conf_ai       => conf_ai,
          conf_di       => conf_di
-      );
+      ); -- vic20_inst
 
-
-   -- On video_ce_o and video_ce_ovl_o: You have an important @TODO when porting a core:
-   -- video_ce_o: You need to make sure that video_ce_o divides clk_main_i such that it transforms clk_main_i
-   --             into the pixelclock of the core (means: the core's native output resolution pre-scandoubler)
-   -- video_ce_ovl_o: Clock enable for the OSM overlay and for sampling the core's (retro) output in a way that
-   --             it is displayed correctly on a "modern" analog input device: Make sure that video_ce_ovl_o
-   --             transforms clk_main_o into the post-scandoubler pixelclock that is valid for the target
-   --             resolution specified by VGA_DX/VGA_DY (globals.vhd)
-   -- video_retro15kHz_o: '1', if the output from the core (post-scandoubler) in the retro 15 kHz analog RGB mode.
-   --             Hint: Scandoubler off does not automatically mean retro 15 kHz on.
-
-   -- @TODO: Keyboard mapping and keyboard behavior
-   -- Each core is treating the keyboard in a different way: Some need low-active "matrices", some
-   -- might need small high-active keyboard memories, etc. This is why the MiSTer2MEGA65 framework
-   -- lets you define literally everything and only provides a minimal abstraction layer to the keyboard.
-   -- You need to adjust keyboard.vhd to your needs
    keyboard_inst : entity work.keyboard
       port map (
          clk_main_i      => clk_main_i,
