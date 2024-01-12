@@ -1,42 +1,51 @@
 ---------------------------------------------------------------------------------------------------------
--- MiSTer2MEGA65 Framework  
+-- Convert MEGA65 keystrokes to the VIC20 keyboard matrix that the CIA1 can scan.
 --
--- Custom keyboard controller for your core
+-- Runs in the clock domain of the VIC20 core
 --
--- Runs in the clock domain of the core.
+-- Interface to the MiSTer VIC20 core that directly connects to the VIC20's CIA1 instead of
+-- going the detour of converting the MEGA65 keystrokes into PS/2 keystrokes first.
+-- This means, that the "fpga64_keyboard" entity of the original core is not used. Instead,
+-- we are modifying the "fpga64_sid_iec" entity so that we can route the CIA1's ports
+-- A and B into this keyboard driver which then emulates the behavior of the physical
+-- VIC20 keyboard including the possibility to "scan" via the row, i.e. pull one or more bits of
+-- port A to zero (one by one) and read via the "column" (i.e. from port B) or vice versa.
 --
--- This is how MiSTer2MEGA65 provides access to the MEGA65 keyboard: 
+-- This is how MiSTer2MEGA65 provides access to the MEGA65 keyboard:
 --
--- Each core is treating the keyboard in a different way: Some need low-active "matrices", some
--- might need small high-active keyboard memories, etc. This is why the MiSTer2MEGA65 framework
--- lets you define literally everything and only provides a minimal abstraction layer to the keyboard.
--- You need to adjust this module to your needs.
---
--- MiSTer2MEGA65 provides a very simple and generic interface to the MEGA65 keyboard:
 -- kb_key_num_i is running through the key numbers 0 to 79 with a frequency of 1 kHz, i.e. the whole
 -- keyboard is scanned 1000 times per second. kb_key_pressed_n_i is already debounced and signals
 -- low active, if a certain key is being pressed right now.
--- 
+--
 -- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022 and licensed under GPL v3
 ---------------------------------------------------------------------------------------------------------
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity keyboard is
    port (
-      clk_main_i           : in std_logic;               -- core clock
-         
+      clk_main_i           : in  std_logic;               -- core clock
+      reset_i              : in  std_logic;
+
+      -- Trigger the sequence RUN<Return> to autostart PRG files
+      trigger_run_i        : in  std_logic;
+
       -- Interface to the MEGA65 keyboard
-      key_num_i            : in integer range 0 to 79;   -- cycles through all MEGA65 keys
-      key_pressed_n_i      : in std_logic;               -- low active: debounced feedback: is kb_key_num_i pressed right now?
-               
-      -- @TODO: Create the kind of keyboard output that your core needs
-      -- "example_n_o" is a low active register and used by the demo core
-      example_n_o          : out std_logic_vector(79 downto 0)
+      key_num_i            : in  integer range 0 to 79;   -- cycles through all MEGA65 keys
+      key_pressed_n_i      : in  std_logic;               -- low active: debounced feedback: is kb_key_num_i pressed right now?
+
+      -- Interface to the VIC20's CIA1
+      cia1_pai_o           : out std_logic_vector(7 downto 0);
+      cia1_pao_i           : in  std_logic_vector(7 downto 0);
+      cia1_pbi_o           : out std_logic_vector(7 downto 0);
+      cia1_pbo_i           : in  std_logic_vector(7 downto 0);
+
+      -- Restore key = NMI
+      restore_n            : out std_logic
    );
-end keyboard;
+end entity keyboard;
 
 architecture beh of keyboard is
 
@@ -44,12 +53,12 @@ architecture beh of keyboard is
 -- kb_key_pressed_n_i is signalling (low active) which key is pressed
 constant m65_ins_del       : integer := 0;
 constant m65_return        : integer := 1;
-constant m65_horz_crsr     : integer := 2;   -- means cursor right in C64 terminology
+constant m65_horz_crsr     : integer := 2;   -- means cursor right in VIC20 terminology
 constant m65_f7            : integer := 3;
 constant m65_f1            : integer := 4;
 constant m65_f3            : integer := 5;
 constant m65_f5            : integer := 6;
-constant m65_vert_crsr     : integer := 7;   -- means cursor down in C64 terminology
+constant m65_vert_crsr     : integer := 7;   -- means cursor down in VIC20 terminology
 constant m65_3             : integer := 8;
 constant m65_w             : integer := 9;
 constant m65_a             : integer := 10;
@@ -83,7 +92,7 @@ constant m65_k             : integer := 37;
 constant m65_o             : integer := 38;
 constant m65_n             : integer := 39;
 constant m65_plus          : integer := 40;
-constant m65_p             : integer := 41; 
+constant m65_p             : integer := 41;
 constant m65_l             : integer := 42;
 constant m65_minus         : integer := 43;
 constant m65_dot           : integer := 44;
@@ -121,15 +130,276 @@ constant m65_restore       : integer := 75;
 
 signal key_pressed_n : std_logic_vector(79 downto 0);
 
+constant C_AK_DELAY : natural := 5_250_000; -- about 1/6 of a second
+type t_autokey_state is (IDLE_ST,
+                         KEYPRESS_ST,
+                         TYPE_R_ST,
+                         TYPE_U_ST,
+                         TYPE_N_ST,
+                         TYPE_RETURN_ST);
+signal autokey_state : t_autokey_state := IDLE_ST;
+signal autokey_next  : t_autokey_state := IDLE_ST;
+signal autokey_key   : natural range 0 to 79;
+signal autokey_delay : natural range 0 to C_AK_DELAY;
+
 begin
 
-   example_n_o <= key_pressed_n;
-   
+   restore_n   <= key_pressed_n(m65_restore);
+
    keyboard_state : process(clk_main_i)
    begin
       if rising_edge(clk_main_i) then
+         -- store currently pressed key in register
          key_pressed_n(key_num_i) <= key_pressed_n_i;
+
+         if reset_i = '1' then
+            autokey_state <= IDLE_ST;
+            autokey_next  <= IDLE_ST;
+            autokey_delay <= C_AK_DELAY;
+            autokey_key   <= 1;
+         end if;
+
+         -- state machine to automatically type run<Return> for autostarting PRG files
+         case autokey_state is
+            when IDLE_ST =>
+               if trigger_run_i = '1' then
+                  autokey_state <= TYPE_R_ST;
+               else
+                  autokey_state <= IDLE_ST;
+               end if;
+
+            when KEYPRESS_ST =>
+               if autokey_delay = 0 then
+                  autokey_state <= autokey_next;
+                  autokey_next  <= IDLE_ST;
+                  autokey_delay <= C_AK_DELAY;
+               else
+                  key_pressed_n(autokey_key) <= '0';
+                  autokey_delay <= autokey_delay - 1;
+               end if;
+
+            when TYPE_R_ST =>
+               autokey_key    <= m65_r;
+               autokey_next   <= TYPE_U_ST;
+               autokey_state  <= KEYPRESS_ST;
+
+            when TYPE_U_ST =>
+               autokey_key    <= m65_u;
+               autokey_next   <= TYPE_N_ST;
+               autokey_state  <= KEYPRESS_ST;
+
+            when TYPE_N_ST =>
+               autokey_key    <= m65_n;
+               autokey_next   <= TYPE_RETURN_ST;
+               autokey_state  <= KEYPRESS_ST;
+
+            when TYPE_RETURN_ST =>
+               autokey_key    <= m65_return;
+               autokey_next   <= IDLE_ST;
+               autokey_state  <= KEYPRESS_ST;
+
+            when others =>
+               null;
+         end case;
       end if;
    end process;
 
-end beh;
+   ------------------------------------------------------------------------------
+   -- Reading via port A and scanning (by setting bits to 0) on port B
+   --
+   -- This code is very similar as fpga64_keyboard.vhd. The fact that the order
+   -- of the MEGA65 scancodes (constants above) and the order how they are
+   -- scanned here is identical is no coincidence.
+   --
+   -- See also: https://www.c64-wiki.com/wiki/Keyboard#Keyboard_Matrix
+   ------------------------------------------------------------------------------
+
+   cia1_pai_o(0) <=  cia1_pao_i(0)                                      and
+                     (cia1_pbo_i(0) or key_pressed_n(m65_ins_del))      and
+                     (cia1_pbo_i(1) or key_pressed_n(m65_return))       and
+
+                     -- right cursor is "natural" for the VIC20, left cursor is emulated with RIGHT SHIFT + HORZ CRSR
+                     (cia1_pbo_i(2) or (key_pressed_n(m65_horz_crsr)
+                                    and key_pressed_n(m65_left_crsr)))  and
+
+                     (cia1_pbo_i(3) or key_pressed_n(m65_f7))           and
+                     (cia1_pbo_i(4) or key_pressed_n(m65_f1))           and
+                     (cia1_pbo_i(5) or key_pressed_n(m65_f3))           and
+                     (cia1_pbo_i(6) or key_pressed_n(m65_f5))           and
+
+                     -- down cursor is "natural" for the VIC20, up cursor is emulated with RIGHT SHIFT + VERT CRSR
+                     (cia1_pbo_i(7) or (key_pressed_n(m65_vert_crsr)
+                                    and key_pressed_n(m65_up_crsr)));
+
+   cia1_pai_o(1) <=  cia1_pao_i(1)                                      and
+                     (cia1_pbo_i(0) or key_pressed_n(m65_3))            and
+                     (cia1_pbo_i(1) or key_pressed_n(m65_w))            and
+                     (cia1_pbo_i(2) or key_pressed_n(m65_a))            and
+                     (cia1_pbo_i(3) or key_pressed_n(m65_4))            and
+                     (cia1_pbo_i(4) or key_pressed_n(m65_z))            and
+                     (cia1_pbo_i(5) or key_pressed_n(m65_s))            and
+                     (cia1_pbo_i(6) or key_pressed_n(m65_e))            and
+                     (cia1_pbo_i(7) or key_pressed_n(m65_left_shift));
+
+   cia1_pai_o(2) <=  cia1_pao_i(2)                                      and
+                     (cia1_pbo_i(0) or key_pressed_n(m65_5))            and
+                     (cia1_pbo_i(1) or key_pressed_n(m65_r))            and
+                     (cia1_pbo_i(2) or key_pressed_n(m65_d))            and
+                     (cia1_pbo_i(3) or key_pressed_n(m65_6))            and
+                     (cia1_pbo_i(4) or key_pressed_n(m65_c))            and
+                     (cia1_pbo_i(5) or key_pressed_n(m65_f))            and
+                     (cia1_pbo_i(6) or key_pressed_n(m65_t))            and
+                     (cia1_pbo_i(7) or key_pressed_n(m65_x));
+
+   cia1_pai_o(3) <=  cia1_pao_i(3)                                      and
+                     (cia1_pbo_i(0) or key_pressed_n(m65_7))            and
+                     (cia1_pbo_i(1) or key_pressed_n(m65_y))            and
+                     (cia1_pbo_i(2) or key_pressed_n(m65_g))            and
+                     (cia1_pbo_i(3) or key_pressed_n(m65_8))            and
+                     (cia1_pbo_i(4) or key_pressed_n(m65_b))            and
+                     (cia1_pbo_i(5) or key_pressed_n(m65_h))            and
+                     (cia1_pbo_i(6) or key_pressed_n(m65_u))            and
+                     (cia1_pbo_i(7) or key_pressed_n(m65_v));
+
+   cia1_pai_o(4) <=  cia1_pao_i(4)                                      and
+                     (cia1_pbo_i(0) or key_pressed_n(m65_9))            and
+                     (cia1_pbo_i(1) or key_pressed_n(m65_i))            and
+                     (cia1_pbo_i(2) or key_pressed_n(m65_j))            and
+                     (cia1_pbo_i(3) or key_pressed_n(m65_0))            and
+                     (cia1_pbo_i(4) or key_pressed_n(m65_m))            and
+                     (cia1_pbo_i(5) or key_pressed_n(m65_k))            and
+                     (cia1_pbo_i(6) or key_pressed_n(m65_o))            and
+                     (cia1_pbo_i(7) or key_pressed_n(m65_n));
+
+   cia1_pai_o(5) <=  cia1_pao_i(5)                                      and
+                     (cia1_pbo_i(0) or key_pressed_n(m65_plus))         and
+                     (cia1_pbo_i(1) or key_pressed_n(m65_p))            and
+                     (cia1_pbo_i(2) or key_pressed_n(m65_l))            and
+                     (cia1_pbo_i(3) or key_pressed_n(m65_minus))        and
+                     (cia1_pbo_i(4) or key_pressed_n(m65_dot))          and
+                     (cia1_pbo_i(5) or key_pressed_n(m65_colon))        and
+                     (cia1_pbo_i(6) or key_pressed_n(m65_at))           and
+                     (cia1_pbo_i(7) or key_pressed_n(m65_comma));
+
+   cia1_pai_o(6) <=  cia1_pao_i(6)                                      and
+                     (cia1_pbo_i(0) or key_pressed_n(m65_gbp))          and
+                     (cia1_pbo_i(1) or key_pressed_n(m65_asterisk))     and
+                     (cia1_pbo_i(2) or key_pressed_n(m65_semicolon))    and
+                     (cia1_pbo_i(3) or key_pressed_n(m65_clr_home))     and
+
+                     -- right shift pressed or one of the "extended" arrow keys "up" and "left" of the MEGA65
+                     (cia1_pbo_i(4) or (key_pressed_n(m65_right_shift)
+                                    and key_pressed_n(m65_up_crsr)
+                                    and key_pressed_n(m65_left_crsr)))  and
+
+                     (cia1_pbo_i(5) or key_pressed_n(m65_equal))        and
+                     (cia1_pbo_i(6) or key_pressed_n(m65_arrow_up))     and
+                     (cia1_pbo_i(7) or key_pressed_n(m65_slash));
+
+   cia1_pai_o(7) <=  cia1_pao_i(7)                                      and
+                     (cia1_pbo_i(0) or key_pressed_n(m65_1))            and
+                     (cia1_pbo_i(1) or key_pressed_n(m65_arrow_left))   and
+                     (cia1_pbo_i(2) or key_pressed_n(m65_ctrl))         and
+                     (cia1_pbo_i(3) or key_pressed_n(m65_2))            and
+                     (cia1_pbo_i(4) or key_pressed_n(m65_space))        and
+                     (cia1_pbo_i(5) or key_pressed_n(m65_mega))         and
+                     (cia1_pbo_i(6) or key_pressed_n(m65_q))            and
+                     (cia1_pbo_i(7) or key_pressed_n(m65_run_stop));
+
+   ------------------------------------------------------------------------------
+   -- Reading via port B and scanning (by setting bits to 0) on port A
+   ------------------------------------------------------------------------------
+
+   cia1_pbi_o(0) <=  cia1_pbo_i(0)                                      and
+                     (cia1_pao_i(0) or key_pressed_n(m65_ins_del))      and
+                     (cia1_pao_i(1) or key_pressed_n(m65_3))            and
+                     (cia1_pao_i(2) or key_pressed_n(m65_5))            and
+                     (cia1_pao_i(3) or key_pressed_n(m65_7))            and
+                     (cia1_pao_i(4) or key_pressed_n(m65_9))            and
+                     (cia1_pao_i(5) or key_pressed_n(m65_plus))         and
+                     (cia1_pao_i(6) or key_pressed_n(m65_gbp))          and
+                     (cia1_pao_i(7) or key_pressed_n(m65_1));
+
+   cia1_pbi_o(1) <=  cia1_pbo_i(1)                                      and
+                     (cia1_pao_i(0) or key_pressed_n(m65_return))       and
+                     (cia1_pao_i(1) or key_pressed_n(m65_w))            and
+                     (cia1_pao_i(2) or key_pressed_n(m65_r))            and
+                     (cia1_pao_i(3) or key_pressed_n(m65_y))            and
+                     (cia1_pao_i(4) or key_pressed_n(m65_i))            and
+                     (cia1_pao_i(5) or key_pressed_n(m65_p))            and
+                     (cia1_pao_i(6) or key_pressed_n(m65_asterisk))     and
+                     (cia1_pao_i(7) or key_pressed_n(m65_arrow_left));
+
+                     -- right cursor is "natural" for the VIC20, left cursor is emulated with RIGHT SHIFT + HORZ CRSR
+   cia1_pbi_o(2) <=  cia1_pbo_i(2)                                      and
+                     (cia1_pao_i(0) or (key_pressed_n(m65_horz_crsr)
+                                    and key_pressed_n(m65_left_crsr)))  and
+
+                     (cia1_pao_i(1) or key_pressed_n(m65_a))            and
+                     (cia1_pao_i(2) or key_pressed_n(m65_d))            and
+                     (cia1_pao_i(3) or key_pressed_n(m65_g))            and
+                     (cia1_pao_i(4) or key_pressed_n(m65_j))            and
+                     (cia1_pao_i(5) or key_pressed_n(m65_l))            and
+                     (cia1_pao_i(6) or key_pressed_n(m65_semicolon))    and
+                     (cia1_pao_i(7) or key_pressed_n(m65_ctrl));
+
+   cia1_pbi_o(3) <=  cia1_pbo_i(3)                                      and
+                     (cia1_pao_i(0) or key_pressed_n(m65_f7))           and
+                     (cia1_pao_i(1) or key_pressed_n(m65_4))            and
+                     (cia1_pao_i(2) or key_pressed_n(m65_6))            and
+                     (cia1_pao_i(3) or key_pressed_n(m65_8))            and
+                     (cia1_pao_i(4) or key_pressed_n(m65_0))            and
+                     (cia1_pao_i(5) or key_pressed_n(m65_minus))        and
+                     (cia1_pao_i(6) or key_pressed_n(m65_clr_home))     and
+                     (cia1_pao_i(7) or key_pressed_n(m65_2));
+
+   cia1_pbi_o(4) <=  cia1_pbo_i(4)                                      and
+                     (cia1_pao_i(0) or key_pressed_n(m65_f1))           and
+                     (cia1_pao_i(1) or key_pressed_n(m65_z))            and
+                     (cia1_pao_i(2) or key_pressed_n(m65_c))            and
+                     (cia1_pao_i(3) or key_pressed_n(m65_b))            and
+                     (cia1_pao_i(4) or key_pressed_n(m65_m))            and
+                     (cia1_pao_i(5) or key_pressed_n(m65_dot))          and
+
+                     -- right shift pressed or one of the "extended" arrow keys "up" and "left" of the MEGA65
+                     (cia1_pao_i(6) or (key_pressed_n(m65_right_shift)
+                                    and key_pressed_n(m65_up_crsr)
+                                    and key_pressed_n(m65_left_crsr)))  and
+
+                     (cia1_pao_i(7) or key_pressed_n(m65_space));
+
+   cia1_pbi_o(5) <=  cia1_pbo_i(5)                                      and
+                     (cia1_pao_i(0) or key_pressed_n(m65_f3))           and
+                     (cia1_pao_i(1) or key_pressed_n(m65_s))            and
+                     (cia1_pao_i(2) or key_pressed_n(m65_f))            and
+                     (cia1_pao_i(3) or key_pressed_n(m65_h))            and
+                     (cia1_pao_i(4) or key_pressed_n(m65_k))            and
+                     (cia1_pao_i(5) or key_pressed_n(m65_colon))        and
+                     (cia1_pao_i(6) or key_pressed_n(m65_equal))        and
+                     (cia1_pao_i(7) or key_pressed_n(m65_mega));
+
+   cia1_pbi_o(6) <=  cia1_pbo_i(6)                                      and
+                     (cia1_pao_i(0) or key_pressed_n(m65_f5))           and
+                     (cia1_pao_i(1) or key_pressed_n(m65_e))            and
+                     (cia1_pao_i(2) or key_pressed_n(m65_t))            and
+                     (cia1_pao_i(3) or key_pressed_n(m65_u))            and
+                     (cia1_pao_i(4) or key_pressed_n(m65_o))            and
+                     (cia1_pao_i(5) or key_pressed_n(m65_at))           and
+                     (cia1_pao_i(6) or key_pressed_n(m65_arrow_up))     and
+                     (cia1_pao_i(7) or key_pressed_n(m65_q));
+
+                     -- down cursor is "natural" for the VIC20, up cursor is emulated with RIGHT SHIFT + VERT CRSR
+   cia1_pbi_o(7) <=  cia1_pbo_i(7)                                      and
+                     (cia1_pao_i(0) or (key_pressed_n(m65_vert_crsr)
+                                    and key_pressed_n(m65_up_crsr)))    and
+
+                     (cia1_pao_i(1) or key_pressed_n(m65_left_shift))   and
+                     (cia1_pao_i(2) or key_pressed_n(m65_x))            and
+                     (cia1_pao_i(3) or key_pressed_n(m65_v))            and
+                     (cia1_pao_i(4) or key_pressed_n(m65_n))            and
+                     (cia1_pao_i(5) or key_pressed_n(m65_comma))        and
+                     (cia1_pao_i(6) or key_pressed_n(m65_slash))        and
+                     (cia1_pao_i(7) or key_pressed_n(m65_run_stop));
+
+end architecture beh;
+

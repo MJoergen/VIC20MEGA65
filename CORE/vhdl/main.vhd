@@ -100,7 +100,6 @@ architecture synthesis of main is
    signal o_ram123_sel  : std_logic;
    signal i_center      : std_logic_vector(1 downto 0);
    signal i_wide        : std_logic;
-   signal ps2_key       : std_logic_vector(10 downto 0);
    signal tape_play     : std_logic;
    signal o_audio       : std_logic_vector(5 downto 0);
    signal cass_write    : std_logic;
@@ -120,6 +119,11 @@ architecture synthesis of main is
 
    signal video_ce      : std_logic;
    signal video_ce_d    : std_logic;
+
+   signal cia1_pa_in    : std_logic_vector(7 downto 0);
+   signal cia1_pa_out   : std_logic_vector(7 downto 0);
+   signal cia1_pb_in    : std_logic_vector(7 downto 0);
+   signal cia1_pb_out   : std_logic_vector(7 downto 0);
 
 begin
 
@@ -186,7 +190,10 @@ begin
          i_center      => i_center,
          i_pal         => '1',
          i_wide        => i_wide,
-         ps2_key       => ps2_key,
+         cia1_pa_i     => cia1_pa_in(0) & cia1_pa_in(6 downto 1) & cia1_pa_in(7),
+         cia1_pa_o     => cia1_pa_out,
+         cia1_pb_i     => cia1_pb_in(3) & cia1_pb_in(6 downto 4) & cia1_pb_in(7) & cia1_pb_in(2 downto 0),
+         cia1_pb_o     => cia1_pb_out,
          tape_play     => tape_play,
          o_audio       => o_audio,
          cass_write    => cass_write,
@@ -219,17 +226,17 @@ begin
    keyboard_inst : entity work.keyboard
       port map (
          clk_main_i      => clk_main_i,
+         reset_i         => reset_hard_i,
+         trigger_run_i   => '0',
 
          -- Interface to the MEGA65 keyboard
          key_num_i       => kb_key_num_i,
          key_pressed_n_i => kb_key_pressed_n_i,
 
-         -- @TODO: Create the kind of keyboard output that your core needs
-         -- "example_n_o" is a low active register and used by the demo core:
-         --    bit 0: Space
-         --    bit 1: Return
-         --    bit 2: Run/Stop
-         example_n_o     => keyboard_n
+         cia1_pao_i      => cia1_pa_out(0) & cia1_pa_out(6 downto 1) & cia1_pa_out(7),
+         cia1_pai_o      => cia1_pa_in,
+         cia1_pbo_i      => cia1_pb_out(3) & cia1_pb_out(6 downto 4) & cia1_pb_out(7) & cia1_pb_out(2 downto 0),
+         cia1_pbi_o      => cia1_pb_in
       ); -- keyboard_inst
 
 end architecture synthesis;
