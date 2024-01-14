@@ -310,7 +310,7 @@ begin
    -- MMCME2_ADV clock generators:
    clk_inst : entity work.clk
       port map (
-         sys_clk_i   => clk,
+         sys_clk_i   => clk_i,
          video_clk_o => video_clk,
          video_rst_o => video_rst,
          main_clk_o  => main_clk,
