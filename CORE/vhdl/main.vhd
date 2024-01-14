@@ -28,6 +28,12 @@ entity main is
       -- Make sure you pass very exact numbers here, because they are used for avoiding clock drift at derived clocks
       clk_main_speed_i   : in    natural;
 
+      -- Access to main memory
+      conf_clk_i         : in    std_logic;
+      conf_wr_i          : in    std_logic;
+      conf_ai_i          : in    std_logic_vector(15 downto 0);
+      conf_di_i          : in    std_logic_vector(7 downto 0);
+
       -- Video output
       video_ce_o         : out   std_logic;
       video_ce_ovl_o     : out   std_logic;
@@ -104,10 +110,6 @@ architecture synthesis of main is
    signal cass_read     : std_logic;
    signal cass_motor    : std_logic;
    signal cass_sw       : std_logic;
-   signal conf_clk      : std_logic;
-   signal conf_wr       : std_logic;
-   signal conf_ai       : std_logic_vector(15 downto 0);
-   signal conf_di       : std_logic_vector(7 downto 0);
    signal o_hsync       : std_logic;
    signal o_vsync       : std_logic;
 
@@ -200,10 +202,10 @@ begin
          cass_motor    => cass_motor,
          cass_sw       => cass_sw,
          rom_std       => '1',
-         conf_clk      => conf_clk,
-         conf_wr       => conf_wr,
-         conf_ai       => conf_ai,
-         conf_di       => conf_di
+         conf_clk      => conf_clk_i,
+         conf_wr       => conf_wr_i,
+         conf_ai       => conf_ai_i,
+         conf_di       => conf_di_i
       ); -- vic20_inst
 
    keyboard_inst : entity work.keyboard

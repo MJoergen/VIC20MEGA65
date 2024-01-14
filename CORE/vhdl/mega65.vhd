@@ -237,6 +237,10 @@ architecture synthesis of mega65_core is
    -- qnice_clk
    ---------------------------------------------------------------------------------------------
 
+   signal   qnice_conf_wr  : std_logic;
+   signal   qnice_conf_ai  : std_logic_vector(15 downto 0);
+   signal   qnice_conf_di  : std_logic_vector(7 downto 0);
+
    -- Menu items
    constant C_MENU_HDMI_16_9_50  : natural := 12;
    constant C_MENU_HDMI_16_9_60  : natural := 13;
@@ -248,11 +252,6 @@ architecture synthesis of mega65_core is
    constant C_MENU_CRT_EMULATION : natural := 30;
    constant C_MENU_HDMI_ZOOM     : natural := 31;
    constant C_MENU_IMPROVE_AUDIO : natural := 32;
-
-   -- QNICE clock domain
-   signal   qnice_demo_vd_data_o : std_logic_vector(15 downto 0);
-   signal   qnice_demo_vd_ce     : std_logic;
-   signal   qnice_demo_vd_we     : std_logic;
 
 begin
 
@@ -345,6 +344,12 @@ begin
          pause_i            => main_pause_core_i,
 
          clk_main_speed_i   => CORE_CLK_SPEED,
+
+         -- Access to VIC 20 main memory
+         conf_clk_i         => qnice_clk_i,
+         conf_wr_i          => qnice_conf_wr,
+         conf_ai_i          => qnice_conf_ai,
+         conf_di_i          => qnice_conf_di,
 
          -- Video output
          -- This is PAL 720x576 @ 50 Hz (pixel clock 27 MHz), but synchronized to main_clk (54 MHz).
@@ -460,24 +465,19 @@ begin
 
    core_specific_devices_proc : process (all)
    begin
-      -- make sure that this is x"EEEE" by default and avoid a register here by having this default value
+      -- Avoid latches
       qnice_dev_data_o <= x"EEEE";
       qnice_dev_wait_o <= '0';
-
-      -- Demo core specific: Delete before starting to port your core
-      qnice_demo_vd_ce <= '0';
-      qnice_demo_vd_we <= '0';
+      qnice_conf_ai    <= (others => '0');
+      qnice_conf_wr    <= '0';
+      qnice_conf_di    <= (others => '0');
 
       case qnice_dev_id_i is
-
-         -- Demo core specific stuff: delete before porting your own core
-         when C_DEV_DEMO_VD =>
-            qnice_demo_vd_ce <= qnice_dev_ce_i;
-            qnice_demo_vd_we <= qnice_dev_we_i;
-            qnice_dev_data_o <= qnice_demo_vd_data_o;
-
-         -- @TODO YOUR RAMs or ROMs (e.g. for cartridges) or other devices here
-         -- Device numbers need to be >= 0x0100
+         -- VIC20 RAM
+         when C_DEV_VIC20_RAM =>
+            qnice_conf_ai <= qnice_dev_addr_i(15 downto 0);
+            qnice_conf_wr <= qnice_dev_we_i;
+            qnice_conf_di <= qnice_dev_data_i(7 downto 0);
 
          when others =>
             null;
@@ -554,9 +554,9 @@ begin
          -- qnice_addr is 28-bit because we have a 16-bit window selector and a 4k window: 65536*4096 = 268.435.456 = 2^28
          qnice_addr_i     => qnice_dev_addr_i,
          qnice_data_i     => qnice_dev_data_i,
-         qnice_data_o     => qnice_demo_vd_data_o,
-         qnice_ce_i       => qnice_demo_vd_ce,
-         qnice_we_i       => qnice_demo_vd_we
+         qnice_data_o     => open,
+         qnice_ce_i       => '0',
+         qnice_we_i       => '0'
       ); -- vdrives_inst
 
 end architecture synthesis;
