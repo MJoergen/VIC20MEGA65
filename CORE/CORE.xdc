@@ -15,3 +15,8 @@ create_generated_clock -name video_clk     [get_pins CORE/clk_inst/i_clk_main/CL
 create_generated_clock -name main_clk      [get_pins CORE/clk_inst/i_clk_main/CLKOUT1]
 # Add more clocks here, if needed
 
+### CDC in IEC drives, handled manually in the source code
+set_false_path -to [get_pins CORE/main_inst/c1541_multi_inst/drives[*].c1541_drv/c1541_track/reset_sync/s1_reg[*]/D]
+set_false_path -to [get_pins CORE/main_inst/c1541_multi_inst/drives[*].c1541_drv/c1541_track/change_sync/s1_reg[*]/D]
+set_false_path -to [get_pins CORE/main_inst/c1541_multi_inst/drives[*].c1541_drv/c1541_track/track_sync/s1_reg[*]/D]
+
