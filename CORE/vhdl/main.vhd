@@ -1,9 +1,10 @@
 ----------------------------------------------------------------------------------
--- MiSTer2MEGA65 Framework
+-- VIC 20 for MEGA65
 --
 -- Wrapper for the MiSTer core that runs exclusively in the core's clock domanin
 --
--- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022 and licensed under GPL v3
+-- based on VIC20_MiSTer by the MiSTer development team
+-- port done by MJoergen and sy2002 in 2023 and licensed under GPL v3
 ----------------------------------------------------------------------------------
 
 library ieee;
@@ -20,6 +21,8 @@ entity main is
    port (
       clk_main_i             : in    std_logic;
       clk_video_i            : in    std_logic;
+
+      -- A pulse of reset_soft_i needs to be 32 clock cycles long at a minimum
       reset_soft_i           : in    std_logic;
       reset_hard_i           : in    std_logic;
 
@@ -45,7 +48,7 @@ entity main is
       kb_key_num_i           : in    integer range 0 to 79; -- cycles through all MEGA65 keys
       kb_key_pressed_n_i     : in    std_logic;             -- low active: debounced feedback: is kb_key_num_i pressed right now?
 
-      -- MEGA65 joysticks and paddles/mouse/potentiometers
+      -- MEGA65 joysticks and paddles
       joy_1_up_n_i           : in    std_logic;
       joy_1_down_n_i         : in    std_logic;
       joy_1_left_n_i         : in    std_logic;
@@ -76,9 +79,9 @@ entity main is
 
       -- Access to main memory
       conf_clk_i             : in    std_logic;
-      conf_wr_i              : in    std_logic;
       conf_ai_i              : in    std_logic_vector(15 downto 0);
       conf_di_i              : in    std_logic_vector(7 downto 0);
+      conf_wr_i              : in    std_logic;
 
 
       -- VIC20 IEC handled by QNICE
@@ -102,7 +105,6 @@ entity main is
       iec_srq_en_o           : out   std_logic;
       iec_srq_n_i            : in    std_logic;
       iec_srq_n_o            : out   std_logic
-
    );
 end entity main;
 
@@ -111,7 +113,7 @@ architecture synthesis of main is
    -- Generic MiSTer VIC20 signals
    signal   vic20_drive_led : std_logic;
 
--- directly connect the VIC20's CIA1 to the emulated keyboard matrix within keyboard.vhd
+   -- directly connect the VIC20's CIA1 to the emulated keyboard matrix within keyboard.vhd
    signal   cia1_pa_in  : std_logic_vector(7 downto 0);
    signal   cia1_pa_out : std_logic_vector(7 downto 0);
    signal   cia1_pb_in  : std_logic_vector(7 downto 0);
@@ -132,8 +134,8 @@ architecture synthesis of main is
    signal   hw_iec_data_n_in : std_logic;
 
    -- Simulated IEC drives
-   signal   iec_drive_ce : std_logic;                     -- chip enable for iec_drive (clock divider, see generate_drive_ce below)
-   signal   iec_dce_sum  : integer       := 0;            -- caution: we expect 32-bit integers here and we expect the initialization to 0
+   signal   iec_drive_ce : std_logic;                -- chip enable for iec_drive (clock divider, see generate_drive_ce below)
+   signal   iec_dce_sum  : integer       := 0;       -- caution: we expect 32-bit integers here and we expect the initialization to 0
 
    signal   iec_img_mounted  : std_logic_vector(G_VDNUM - 1 downto 0);
    signal   iec_img_readonly : std_logic;
@@ -160,9 +162,9 @@ architecture synthesis of main is
    signal   iec_par_data_out    : std_logic_vector(7 downto 0);
 
    -- unprocessed video output of the VIC20 core
-   signal   o_audio     : std_logic_vector(5 downto 0);
-   signal   o_hsync     : std_logic;
-   signal   o_vsync     : std_logic;
+   signal   o_audio : std_logic_vector(5 downto 0);
+   signal   o_hsync : std_logic;
+   signal   o_vsync : std_logic;
 
    signal   div     : unsigned(1 downto 0);
    signal   v20_en  : std_logic;
@@ -176,7 +178,7 @@ architecture synthesis of main is
    signal   reset_core_int_n : std_logic := '1';
    signal   hard_reset_n     : std_logic := '1';
 
-   constant C_HARD_RST_DELAY : natural   := 100_000;      -- roundabout 1/30 of a second
+   constant C_HARD_RST_DELAY : natural   := 100_000; -- roundabout 1/30 of a second
    signal   hard_rst_counter : natural   := 0;
 
 begin
@@ -256,6 +258,10 @@ begin
       end if;
    end process v20_en_proc;
 
+   --------------------------------------------------------------------------------------------------
+   -- MiSTer VIC 20 core / main machine
+   --------------------------------------------------------------------------------------------------
+
    vic20_inst : entity work.vic20
       port map (
          i_sysclk      => clk_main_i,
@@ -263,15 +269,6 @@ begin
          i_reset       => reset_soft_i or reset_hard_i,
          i_restore_n   => restore_key_n,
          o_p2h         => open,
-         clk_i         => vic20_iec_clk_in and hw_iec_clk_n_in,
-         clk_o         => vic20_iec_clk_out,
-         atn_o         => vic20_iec_atn_out,
-         data_i        => vic20_iec_data_in and hw_iec_data_n_in,
-         data_o        => vic20_iec_data_out,
-         i_joy         => joy_1_right_n_i & joy_1_left_n_i & joy_1_down_n_i & joy_1_up_n_i,
-         i_fire        => joy_1_fire_n_i,
-         i_potx        => pot1_x_i,
-         i_poty        => pot1_y_i,
          i_ram_ext_ro  => "00000", -- read-only region if set
          i_ram_ext     => "00000", -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
          i_extmem_en   => '0',
@@ -285,6 +282,14 @@ begin
          o_blk123_sel  => open,
          o_blk5_sel    => open,
          o_ram123_sel  => open,
+
+         -- keyboard interface: directly connect the CIA1
+         cia1_pa_i     => cia1_pa_in(0) & cia1_pa_in(6 downto 1) & cia1_pa_in(7),
+         cia1_pa_o     => cia1_pa_out,
+         cia1_pb_i     => cia1_pb_in(3) & cia1_pb_in(6 downto 4) & cia1_pb_in(7) & cia1_pb_in(2 downto 0),
+         cia1_pb_o     => cia1_pb_out,
+
+         -- VGA/SCART interface
          o_ce_pix      => video_ce,
          o_video_r     => video_red_o,
          o_video_g     => video_green_o,
@@ -296,15 +301,27 @@ begin
          i_center      => "11",
          i_pal         => '1',
          i_wide        => '0',
-         cia1_pa_i     => cia1_pa_in(0) & cia1_pa_in(6 downto 1) & cia1_pa_in(7),
-         cia1_pa_o     => cia1_pa_out,
-         cia1_pb_i     => cia1_pb_in(3) & cia1_pb_in(6 downto 4) & cia1_pb_in(7) & cia1_pb_in(2 downto 0),
-         cia1_pb_o     => cia1_pb_out,
+
+         -- paddle interface
+         i_joy         => joy_1_right_n_i & joy_1_left_n_i & joy_1_down_n_i & joy_1_up_n_i,
+         i_fire        => joy_1_fire_n_i,
+         i_potx        => pot1_x_i,
+         i_poty        => pot1_y_i,
+
          o_audio       => o_audio,
+
+         clk_i         => vic20_iec_clk_in and hw_iec_clk_n_in,
+         clk_o         => vic20_iec_clk_out,
+         atn_o         => vic20_iec_atn_out,
+         data_i        => vic20_iec_data_in and hw_iec_data_n_in,
+         data_o        => vic20_iec_data_out,
+
+         -- Cassette drive
          cass_write    => open,
-         cass_read     => '0',
          cass_motor    => open,
          cass_sw       => '0',
+         cass_read     => '0',
+
          rom_std       => vic20_rom_i,
          conf_clk      => conf_clk_i,
          conf_wr       => conf_wr_i,
@@ -312,6 +329,11 @@ begin
          conf_di       => conf_di_i
       ); -- vic20_inst
 
+   --------------------------------------------------------------------------------------------------
+   -- Generate video output for the M2M framework
+   --------------------------------------------------------------------------------------------------
+
+   -- Clock divider: The core's pixel clock is 1/2 of the main clock
    video_ce_proc : process (clk_video_i)
    begin
       if rising_edge(clk_video_i) then
@@ -332,21 +354,27 @@ begin
    keyboard_inst : entity work.keyboard
       port map (
          clk_main_i      => clk_main_i,
-         reset_i         => reset_hard_i,
+         reset_i         => not reset_core_n,
+
+         -- Trigger the sequence RUN<Return> to autostart PRG files
          trigger_run_i   => '0',
 
          -- Interface to the MEGA65 keyboard
          key_num_i       => kb_key_num_i,
          key_pressed_n_i => kb_key_pressed_n_i,
 
-         cia1_pao_i      => cia1_pa_out(0) & cia1_pa_out(6 downto 1) & cia1_pa_out(7),
          cia1_pai_o      => cia1_pa_in,
-         cia1_pbo_i      => cia1_pb_out(3) & cia1_pb_out(6 downto 4) & cia1_pb_out(7) & cia1_pb_out(2 downto 0),
+         cia1_pao_i      => cia1_pa_out(0) & cia1_pa_out(6 downto 1) & cia1_pa_out(7),
          cia1_pbi_o      => cia1_pb_in,
+         cia1_pbo_i      => cia1_pb_out(3) & cia1_pb_out(6 downto 4) & cia1_pb_out(7) & cia1_pb_out(2 downto 0),
 
          -- Restore key = NMI
          restore_n       => restore_key_n
       ); -- keyboard_inst
+
+   --------------------------------------------------------------------------------------------------
+   -- MiSTer audio signal processing: Convert the core's 6-bit signal to a signed 16-bit signal
+   --------------------------------------------------------------------------------------------------
 
    audio_left_o    <= signed("0" & o_audio & "000000000");
    audio_right_o   <= signed("0" & o_audio & "000000000");
@@ -429,14 +457,14 @@ begin
 
    c1541_multi_inst : entity work.c1541_multi
       generic map (
-         PARPORT => 0,
-         DUALROM => 1,
+         PARPORT => 0, -- Parallel C1541 port for faster (~20x) loading time using DolphinDOS
+         DUALROM => 1, -- Two switchable ROMs: Standard DOS and JiffyDOS
          DRIVES  => G_VDNUM
       )
       port map (
          clk          => clk_main_i,
-         reset        => iec_drives_reset,
          ce           => iec_drive_ce,
+         reset        => iec_drives_reset,
          pause        => '0',
 
          -- interface to the VIC20 core
@@ -461,8 +489,8 @@ begin
          sd_wr        => iec_sd_wr,
          sd_ack       => iec_sd_ack,
          sd_buff_addr => iec_sd_buf_addr,
-         sd_buff_dout => iec_sd_buf_data_in,
-         sd_buff_din  => iec_sd_buf_data_out,
+         sd_buff_dout => iec_sd_buf_data_in,           -- data from SD card to the buffer RAM within the drive ("dout" is a strange name)
+         sd_buff_din  => iec_sd_buf_data_out,          -- read the buffer RAM within the drive
          sd_buff_wr   => iec_sd_buf_wr,
 
          -- drive led
@@ -513,8 +541,8 @@ begin
 
    vdrives_inst : entity work.vdrives
       generic map (
-         VDNUM => G_VDNUM,
-         BLKSZ => 1
+         VDNUM => G_VDNUM, -- amount of virtual drives
+         BLKSZ => 1        -- 1 = 256 bytes block size
       )
       port map (
          clk_qnice_i      => vic20_clk_sd_i,
@@ -525,7 +553,7 @@ begin
          img_mounted_o    => iec_img_mounted,
          img_readonly_o   => iec_img_readonly,
          img_size_o       => iec_img_size,
-         img_type_o       => iec_img_type,
+         img_type_o       => iec_img_type,   -- 00=1541 emulated GCR(D64), 01=1541 real GCR mode (G64,D64), 10=1581 (D81)
 
          -- While "img_mounted_o" needs to be strobed, "drive_mounted" latches the strobe in the core's clock domain,
          -- so that it can be used for resetting (and unresetting) the drive.
@@ -541,7 +569,7 @@ begin
          -- MiSTer's "SD block level access" interface, which runs in QNICE's clock domain
          -- using dedicated signal on Mister's side such as "clk_sys"
          sd_lba_i         => iec_sd_lba,
-         sd_blk_cnt_i     => iec_sd_blk_cnt,
+         sd_blk_cnt_i     => iec_sd_blk_cnt, -- number of blocks-1
          sd_rd_i          => iec_sd_rd,
          sd_wr_i          => iec_sd_wr,
          sd_ack_o         => iec_sd_ack,
