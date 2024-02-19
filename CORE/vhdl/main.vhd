@@ -24,6 +24,9 @@ entity main is
       reset_hard_i           : in    std_logic;
       pause_i                : in    std_logic;
 
+      -- Select VIC20's ROM: 0=Custom, 1=Standard
+      vic20_rom_i            : in    std_logic;
+
       -- MiSTer core main clock speed:
       -- Make sure you pass very exact numbers here, because they are used for avoiding clock drift at derived clocks
       clk_main_speed_i       : in    natural;
@@ -37,9 +40,9 @@ entity main is
       -- Video output
       video_ce_o             : out   std_logic;
       video_ce_ovl_o         : out   std_logic;
-      video_red_o            : out   std_logic_vector(7 downto 0);
-      video_green_o          : out   std_logic_vector(7 downto 0);
-      video_blue_o           : out   std_logic_vector(7 downto 0);
+      video_red_o            : out   std_logic_vector(3 downto 0);
+      video_green_o          : out   std_logic_vector(3 downto 0);
+      video_blue_o           : out   std_logic_vector(3 downto 0);
       video_vs_o             : out   std_logic;
       video_hs_o             : out   std_logic;
       video_hblank_o         : out   std_logic;
@@ -48,6 +51,10 @@ entity main is
       -- Audio output (Signed PCM)
       audio_left_o           : out   signed(15 downto 0);
       audio_right_o          : out   signed(15 downto 0);
+
+      -- VIC20 drive led (color is RGB)
+      drive_led_o            : out   std_logic;
+      drive_led_col_o        : out   std_logic_vector(23 downto 0);
 
       -- M2M Keyboard interface
       kb_key_num_i           : in    integer range 0 to 79; -- cycles through all MEGA65 keys
@@ -82,107 +89,157 @@ entity main is
       joy_1_right_n_i        : in    std_logic;
       joy_1_fire_n_i         : in    std_logic;
 
-      joy_2_up_n_i           : in    std_logic;
-      joy_2_down_n_i         : in    std_logic;
-      joy_2_left_n_i         : in    std_logic;
-      joy_2_right_n_i        : in    std_logic;
-      joy_2_fire_n_i         : in    std_logic;
-
       pot1_x_i               : in    std_logic_vector(7 downto 0);
-      pot1_y_i               : in    std_logic_vector(7 downto 0);
-      pot2_x_i               : in    std_logic_vector(7 downto 0);
-      pot2_y_i               : in    std_logic_vector(7 downto 0)
+      pot1_y_i               : in    std_logic_vector(7 downto 0)
    );
 end entity main;
 
 architecture synthesis of main is
 
-   -- @TODO: Remove these demo core signals
-   signal keyboard_n : std_logic_vector(79 downto 0);
+   -- Generic MiSTer VIC20 signals
+   signal   vic20_drive_led : std_logic;
 
-   signal reset_core_n  : std_logic;
+   signal   reset_core_n     : std_logic;
+   signal   reset_core_int_n : std_logic;
+   signal   hard_reset_n     : std_logic := '1';
 
-   signal i_ram_ext_ro  : std_logic_vector(4 downto 0); -- read-only region if set
-   signal i_ram_ext     : std_logic_vector(4 downto 0); -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
-   signal i_extmem_en   : std_logic;
-   signal o_extmem_sel  : std_logic;
-   signal o_extmem_r_wn : std_logic;
-   signal o_extmem_addr : std_logic_vector(15 downto 0);
-   signal i_extmem_data : std_logic_vector(7 downto 0);
-   signal o_extmem_data : std_logic_vector(7 downto 0);
-   signal o_io2_sel     : std_logic;
-   signal o_io3_sel     : std_logic;
-   signal o_blk123_sel  : std_logic;
-   signal o_blk5_sel    : std_logic;
-   signal o_ram123_sel  : std_logic;
-   signal tape_play     : std_logic;
-   signal o_audio       : std_logic_vector(5 downto 0);
-   signal cass_write    : std_logic;
-   signal cass_read     : std_logic;
-   signal cass_motor    : std_logic;
-   signal cass_sw       : std_logic;
-   signal o_hsync       : std_logic;
-   signal o_vsync       : std_logic;
+   constant C_HARD_RST_DELAY : natural   := 100_000;      -- roundabout 1/30 of a second
+   signal   hard_rst_counter : natural   := 0;
 
-   signal div     : unsigned(1 downto 0);
-   signal v20_en  : std_logic;
-   signal div_ovl : unsigned(0 downto 0);
+   signal   keyboard_n : std_logic_vector(79 downto 0);
 
-   signal video_ce   : std_logic;
-   signal video_ce_d : std_logic;
+   signal   o_io2_sel     : std_logic;
+   signal   o_io3_sel     : std_logic;
+   signal   o_blk123_sel  : std_logic;
+   signal   o_blk5_sel    : std_logic;
+   signal   o_ram123_sel  : std_logic;
+   signal   o_audio       : std_logic_vector(5 downto 0);
+   signal   o_hsync       : std_logic;
+   signal   o_vsync       : std_logic;
 
-   signal cia1_pa_in  : std_logic_vector(7 downto 0);
-   signal cia1_pa_out : std_logic_vector(7 downto 0);
-   signal cia1_pb_in  : std_logic_vector(7 downto 0);
-   signal cia1_pb_out : std_logic_vector(7 downto 0);
+   signal   div     : unsigned(1 downto 0);
+   signal   v20_en  : std_logic;
+   signal   div_ovl : unsigned(0 downto 0);
+
+   signal   video_ce   : std_logic;
+   signal   video_ce_d : std_logic;
+
+   signal   cia1_pa_in  : std_logic_vector(7 downto 0);
+   signal   cia1_pa_out : std_logic_vector(7 downto 0);
+   signal   cia1_pb_in  : std_logic_vector(7 downto 0);
+   signal   cia1_pb_out : std_logic_vector(7 downto 0);
+
+   -- the Restore key is special : it creates a non maskable interrupt (NMI)
+   signal   restore_key_n : std_logic;
 
    -- VIC20's IEC signals
-   signal vic20_iec_clk_o  : std_logic;
-   signal vic20_iec_clk_i  : std_logic;
-   signal vic20_iec_atn_o  : std_logic;
-   signal vic20_iec_data_o : std_logic;
-   signal vic20_iec_data_i : std_logic;
+   signal   vic20_iec_clk_out  : std_logic;
+   signal   vic20_iec_clk_in   : std_logic;
+   signal   vic20_iec_atn_out  : std_logic;
+   signal   vic20_iec_data_out : std_logic;
+   signal   vic20_iec_data_in  : std_logic;
 
    -- Hardware IEC port
-   signal hw_iec_clk_n_i  : std_logic;
-   signal hw_iec_data_n_i : std_logic;
+   signal   hw_iec_clk_n_in  : std_logic;
+   signal   hw_iec_data_n_in : std_logic;
 
    -- Simulated IEC drives
-   signal iec_drive_ce : std_logic;                     -- chip enable for iec_drive (clock divider, see generate_drive_ce below)
-   signal iec_dce_sum  : integer := 0;                  -- caution: we expect 32-bit integers here and we expect the initialization to 0
+   signal   iec_drive_ce : std_logic;                     -- chip enable for iec_drive (clock divider, see generate_drive_ce below)
+   signal   iec_dce_sum  : integer       := 0;            -- caution: we expect 32-bit integers here and we expect the initialization to 0
 
-   signal iec_img_mounted_i  : std_logic_vector(G_VDNUM - 1 downto 0);
-   signal iec_img_readonly_i : std_logic;
-   signal iec_img_size_i     : std_logic_vector(31 downto 0);
-   signal iec_img_type_i     : std_logic_vector( 1 downto 0);
+   signal   iec_img_mounted  : std_logic_vector(G_VDNUM - 1 downto 0);
+   signal   iec_img_readonly : std_logic;
+   signal   iec_img_size     : std_logic_vector(31 downto 0);
+   signal   iec_img_type     : std_logic_vector( 1 downto 0);
 
-   signal iec_drives_reset : std_logic_vector(G_VDNUM - 1 downto 0);
-   signal vdrives_mounted  : std_logic_vector(G_VDNUM - 1 downto 0);
-   signal cache_dirty      : std_logic_vector(G_VDNUM - 1 downto 0);
-   signal prevent_reset    : std_logic;
+   signal   iec_drives_reset : std_logic_vector(G_VDNUM - 1 downto 0);
+   signal   vdrives_mounted  : std_logic_vector(G_VDNUM - 1 downto 0);
+   signal   cache_dirty      : std_logic_vector(G_VDNUM - 1 downto 0);
+   signal   prevent_reset    : std_logic;
 
-   signal iec_sd_lba_o      : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)(31 downto 0);
-   signal iec_sd_blk_cnt_o  : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)( 5 downto 0);
-   signal iec_sd_rd_o       : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
-   signal iec_sd_wr_o       : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
-   signal iec_sd_ack_i      : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
-   signal iec_sd_buf_addr_i : std_logic_vector(13 downto 0);
-   signal iec_sd_buf_data_i : std_logic_vector( 7 downto 0);
-   signal iec_sd_buf_data_o : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)(7 downto 0);
-   signal iec_sd_buf_wr_i   : std_logic;
-   signal iec_par_stb_i     : std_logic;
-   signal iec_par_stb_o     : std_logic;
-   signal iec_par_data_i    : std_logic_vector(7 downto 0);
-   signal iec_par_data_o    : std_logic_vector(7 downto 0);
-   signal iec_rom_std_i     : std_logic;
-   signal iec_rom_addr_i    : std_logic_vector(15 downto 0);
-   signal iec_rom_data_i    : std_logic_vector( 7 downto 0);
-   signal iec_rom_wr_i      : std_logic;
+   signal   iec_sd_lba          : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)(31 downto 0);
+   signal   iec_sd_blk_cnt      : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)( 5 downto 0);
+   signal   iec_sd_rd           : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
+   signal   iec_sd_wr           : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
+   signal   iec_sd_ack          : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
+   signal   iec_sd_buf_addr     : std_logic_vector(13 downto 0);
+   signal   iec_sd_buf_data_in  : std_logic_vector( 7 downto 0);
+   signal   iec_sd_buf_data_out : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)(7 downto 0);
+   signal   iec_sd_buf_wr       : std_logic;
+   signal   iec_par_stb_in      : std_logic;
+   signal   iec_par_stb_out     : std_logic;
+   signal   iec_par_data_in     : std_logic_vector(7 downto 0);
+   signal   iec_par_data_out    : std_logic_vector(7 downto 0);
 
 begin
 
-   video_hs_o    <= not o_hsync;
-   video_vs_o    <= not o_vsync;
+   -- prevent data corruption by not allowing a soft reset to happen while the cache is still dirty
+   -- since we can have more than one cache that might be dirty, we convert the std_logic_vector of length G_VDNUM
+   -- into an unsigned and check for zero
+   prevent_reset   <= '0' when unsigned(cache_dirty) = 0 else
+                      '1';
+
+   -- the color of the drive led is green normally, but it turns yellow
+   -- when the cache is dirty and/or currently being flushed
+   drive_led_col_o <= x"00FF00" when unsigned(cache_dirty) = 0 else
+                      x"FFFF00";
+
+   -- the drive led is on if either the C64 is writing to the virtual disk (cached in RAM)
+   -- or if the dirty cache is dirty and/orcurrently being flushed to the SD card
+   drive_led_o     <= vic20_drive_led when unsigned(cache_dirty) = 0 else
+                      '1';
+
+
+   --------------------------------------------------------------------------------------------------
+   -- Hard reset
+   --------------------------------------------------------------------------------------------------
+
+   hard_reset_proc : process (clk_main_i)
+   begin
+      if rising_edge(clk_main_i) then
+         if reset_soft_i = '1' or reset_hard_i = '1' then
+            -- Due to sw_cartridge_wrapper's logic, reset_soft_i stays high longer than reset_hard_i.
+            -- We need to make sure that this is not interfering with hard_reset_n
+            if reset_hard_i = '1' then
+               hard_rst_counter <= C_HARD_RST_DELAY;
+               hard_reset_n     <= '0';
+            end if;
+
+            -- reset_core_n is low-active, so prevent_reset = 0 means execute reset
+            -- but a hard reset can override
+            reset_core_int_n <= prevent_reset and (not reset_hard_i);
+         else
+            -- The idea of the hard reset is, that while reset_core_n is back at '1' and therefore the core is
+            -- running (not being reset any more), hard_reset_n stays low for C_HARD_RST_DELAY clock cycles.
+            -- Reason: We need to give the KERNAL time to execute the routine $FD02 where it checks for the
+            -- cartridge signature "CBM80" in $8003 onwards. In case reset_n = '0' during these tests (i.e. hard
+            -- reset active) we will return zero instead of "CBM80" and therefore perform a hard reset.
+            reset_core_int_n <= '1';
+            if hard_rst_counter = 0 then
+               hard_reset_n <= '1';
+            else
+               hard_rst_counter <= hard_rst_counter - 1;
+            end if;
+         end if;
+      end if;
+   end process hard_reset_proc;
+
+   -- Combined reset signal to be used throughout main.vhd: reset triggered by the MEGA65's reset button (reset_core_int_n)
+   -- and reset triggered by an external cartridge.
+   combined_reset_proc : process (all)
+   begin
+      reset_core_n <= '1';
+
+      if reset_core_int_n = '0' then
+         reset_core_n <= '0';
+      elsif prevent_reset = '0' then
+         reset_core_n <= '0';
+      end if;
+   end process combined_reset_proc;
+
+
+   video_hs_o      <= not o_hsync;
+   video_vs_o      <= not o_vsync;
 
    v20_en_proc : process (clk_main_i)
    begin
@@ -203,41 +260,42 @@ begin
       end if;
    end process video_ce_proc;
 
-   audio_left_o  <= signed("0" & o_audio & "000000000");
-   audio_right_o <= signed("0" & o_audio & "000000000");
+   audio_left_o    <= signed("0" & o_audio & "000000000");
+   audio_right_o   <= signed("0" & o_audio & "000000000");
 
    vic20_inst : entity work.vic20
       port map (
          i_sysclk      => clk_main_i,
          i_sysclk_en   => v20_en,
          i_reset       => reset_soft_i or reset_hard_i,
+         i_restore_n   => restore_key_n,
          o_p2h         => open,
-         atn_o         => iec_atn_n_o,
-         clk_o         => iec_clk_n_o,
-         clk_i         => iec_clk_n_i,
-         data_o        => iec_data_n_o,
-         data_i        => iec_data_n_i,
+         clk_i         => vic20_iec_clk_in and hw_iec_clk_n_in,
+         clk_o         => vic20_iec_clk_out,
+         atn_o         => vic20_iec_atn_out,
+         data_i        => vic20_iec_data_in and hw_iec_data_n_in,
+         data_o        => vic20_iec_data_out,
          i_joy         => joy_1_right_n_i & joy_1_left_n_i & joy_1_down_n_i & joy_1_up_n_i,
          i_fire        => joy_1_fire_n_i,
          i_potx        => pot1_x_i,
          i_poty        => pot1_y_i,
-         i_ram_ext_ro  => i_ram_ext_ro,
-         i_ram_ext     => i_ram_ext,
-         i_extmem_en   => i_extmem_en,
-         o_extmem_sel  => o_extmem_sel,
-         o_extmem_r_wn => o_extmem_r_wn,
-         o_extmem_addr => o_extmem_addr,
-         i_extmem_data => i_extmem_data,
-         o_extmem_data => o_extmem_data,
+         i_ram_ext_ro  => "00000", -- read-only region if set
+         i_ram_ext     => "00000", -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
+         i_extmem_en   => '0',
+         o_extmem_sel  => open,
+         o_extmem_r_wn => open,
+         o_extmem_addr => open,
+         i_extmem_data => x"00",
+         o_extmem_data => open,
          o_io2_sel     => o_io2_sel,
          o_io3_sel     => o_io3_sel,
          o_blk123_sel  => o_blk123_sel,
          o_blk5_sel    => o_blk5_sel,
          o_ram123_sel  => o_ram123_sel,
          o_ce_pix      => video_ce,
-         o_video_r     => video_red_o(7 downto 4),
-         o_video_g     => video_green_o(7 downto 4),
-         o_video_b     => video_blue_o(7 downto 4),
+         o_video_r     => video_red_o,
+         o_video_g     => video_green_o,
+         o_video_b     => video_blue_o,
          o_hsync       => o_hsync,
          o_vsync       => o_vsync,
          o_hblank      => video_hblank_o,
@@ -249,13 +307,12 @@ begin
          cia1_pa_o     => cia1_pa_out,
          cia1_pb_i     => cia1_pb_in(3) & cia1_pb_in(6 downto 4) & cia1_pb_in(7) & cia1_pb_in(2 downto 0),
          cia1_pb_o     => cia1_pb_out,
-         tape_play     => tape_play,
          o_audio       => o_audio,
-         cass_write    => cass_write,
-         cass_read     => cass_read,
-         cass_motor    => cass_motor,
-         cass_sw       => cass_sw,
-         rom_std       => '1',
+         cass_write    => open,
+         cass_read     => '0',
+         cass_motor    => open,
+         cass_sw       => '0',
+         rom_std       => vic20_rom_i,
          conf_clk      => conf_clk_i,
          conf_wr       => conf_wr_i,
          conf_ai       => conf_ai_i,
@@ -275,15 +332,77 @@ begin
          cia1_pao_i      => cia1_pa_out(0) & cia1_pa_out(6 downto 1) & cia1_pa_out(7),
          cia1_pai_o      => cia1_pa_in,
          cia1_pbo_i      => cia1_pb_out(3) & cia1_pb_out(6 downto 4) & cia1_pb_out(7) & cia1_pb_out(2 downto 0),
-         cia1_pbi_o      => cia1_pb_in
+         cia1_pbi_o      => cia1_pb_in,
+
+         -- Restore key = NMI
+         restore_n       => restore_key_n
       ); -- keyboard_inst
 
 
-   reset_core_n <= not reset_soft_i;
+   --------------------------------------------------------------------------------------------------
+   -- Hardware IEC port
+   --------------------------------------------------------------------------------------------------
+
+   handle_hardware_iec_port_proc : process (all)
+   begin
+      iec_reset_n_o    <= '1';
+      iec_atn_n_o      <= '1';
+      iec_clk_en_o     <= '0';
+      iec_clk_n_o      <= '1';
+      iec_data_en_o    <= '0';
+      iec_data_n_o     <= '1';
+
+      -- Since IEC is a bus, we need to connect the input lines coming from the hardware port
+      -- to all participants of the bus. At this time these are:
+      --    VIC20: vic20_inst using the iec_ signals
+      --    Simulated disk drives: iec_drive_inst using the iec_ signals
+      -- All signals are LOW active, so we need to AND them.
+      -- As soon as we have more participants than just vic20_inst and iec_drive_inst we will
+      -- need to have some more signals for the bus instead of directly connecting them as we do today.
+      hw_iec_clk_n_in  <= '1';
+      hw_iec_data_n_in <= '1';
+
+      -- According to https://www.c64-wiki.com/wiki/Serial_Port, the VIC20 does not use the SRQ line and therefore
+      -- we are at this time also not using it. The wiki article states, hat even though it is not used, it is
+      -- still connected with the read line of the cassette port (although this can only detect signal edges,
+      -- but not signal levels).
+      -- @TODO: Investigate, if there are some edge-case use-cases that are using this "feature" and
+      -- in this case enhance our simulation
+      iec_srq_en_o     <= '0';
+      iec_srq_n_o      <= '1';
+
+      if iec_hardware_port_en_i = '1' then
+         -- The IEC bus is low active. By default, we let the hardware bus lines float by setting the NC7SZ126P5X
+         -- output driver's OE to zero. We hardcode all output lines to zero and as soon as we need to pull a line
+         -- to zero, we activate the NC7SZ126P5X OE by setting it to one. This means that the actual signalling is
+         -- done by changing the NC7SZ126P5X OE instead of changing the output lines to high/low. This ensures
+         -- that the lines keep floating when we have "nothing to say" to the bus.
+         iec_clk_n_o      <= '0';
+         iec_data_n_o     <= '0';
+
+         -- These lines are not connected to a NC7SZ126P5X since the VIC20 is supposed to be the only
+         -- party in the bus who is allowed to pull this line to zero
+         iec_reset_n_o    <= reset_core_n;
+         iec_atn_n_o      <= vic20_iec_atn_out;
+
+         -- Read from the hardware IEC port (see comment above: We need to connect this to i_fpga64_sid_iec and i_iec_drive)
+         hw_iec_clk_n_in  <= iec_clk_n_i;
+         hw_iec_data_n_in <= iec_data_n_i;
+
+         -- Write to the IEC port by pulling the signals low and otherwise let them float (using the NC7SZ126P5X chip)
+         -- We need to invert the logic, because if the VIC20 wants to pull something to LOW we need to ENABLE the NC7SZ126P5X's OE
+         iec_clk_en_o     <= not vic20_iec_clk_out;
+         iec_data_en_o    <= not vic20_iec_data_out;
+      end if;
+   end process handle_hardware_iec_port_proc;
 
    --------------------------------------------------------------------------------------------------
    -- MiSTer IEC drives
    --------------------------------------------------------------------------------------------------
+
+   -- Parallel C1541 port: not implemented, yet
+   iec_par_stb_in  <= '0';
+   iec_par_data_in <= (others => '0');
 
    -- Drive is held to reset if the core is held to reset or if the drive is not mounted, yet
    -- @TODO: MiSTer also allows these options when it comes to drive-enable:
@@ -303,44 +422,50 @@ begin
       )
       port map (
          clk          => clk_main_i,
-         ce           => iec_drive_ce,
          reset        => iec_drives_reset,
+         ce           => iec_drive_ce,
+         pause        => '0',
 
          -- interface to the VIC20 core
-         iec_clk_i    => vic20_iec_clk_o and hw_iec_clk_n_i,
-         iec_clk_o    => vic20_iec_clk_i,
-         iec_atn_i    => vic20_iec_atn_o,
-         iec_data_i   => vic20_iec_data_o and hw_iec_data_n_i,
-         iec_data_o   => vic20_iec_data_i,
+         iec_clk_i    => vic20_iec_clk_out and hw_iec_clk_n_in,
+         iec_clk_o    => vic20_iec_clk_in,
+         iec_atn_i    => vic20_iec_atn_out,
+         iec_data_i   => vic20_iec_data_out and hw_iec_data_n_in,
+         iec_data_o   => vic20_iec_data_in,
 
          -- disk image status
-         img_mounted  => iec_img_mounted_i,
-         img_readonly => iec_img_readonly_i,
-         img_size     => iec_img_size_i,
-         gcr_mode     => "11",
+         img_mounted  => iec_img_mounted,
+         img_readonly => iec_img_readonly,
+         img_size     => iec_img_size,
+         gcr_mode     => "00",   -- D64
 
          -- QNICE SD-Card/FAT32 interface
          clk_sys      => vic20_clk_sd_i,
 
-         sd_lba       => iec_sd_lba_o,
-         sd_blk_cnt   => iec_sd_blk_cnt_o,
-         sd_rd        => iec_sd_rd_o,
-         sd_wr        => iec_sd_wr_o,
-         sd_ack       => iec_sd_ack_i,
-         sd_buff_addr => iec_sd_buf_addr_i,
-         sd_buff_dout => iec_sd_buf_data_i,
-         sd_buff_din  => iec_sd_buf_data_o,
-         sd_buff_wr   => iec_sd_buf_wr_i,
+         sd_lba       => iec_sd_lba,
+         sd_blk_cnt   => iec_sd_blk_cnt,
+         sd_rd        => iec_sd_rd,
+         sd_wr        => iec_sd_wr,
+         sd_ack       => iec_sd_ack,
+         sd_buff_addr => iec_sd_buf_addr,
+         sd_buff_dout => iec_sd_buf_data_in,
+         sd_buff_din  => iec_sd_buf_data_out,
+         sd_buff_wr   => iec_sd_buf_wr,
 
          -- drive led
          led          => vic20_drive_led,
 
-         -- Access custom rom (DOS): All in QNICE clock domain but rom_std_i is in main clock domain
-         rom_std_i    => vic20_rom_i(0) or vic20_rom_i(1),
-         rom_addr_i   => c1541rom_addr_i,
-         rom_data_i   => c1541rom_data_i,
-         rom_wr_i     => c1541rom_we_i,
-         rom_data_o   => c1541rom_data_o
+         -- Parallel C1541 port
+         par_stb_i    => iec_par_stb_in,
+         par_stb_o    => iec_par_stb_out,
+         par_data_i   => iec_par_data_in,
+         par_data_o   => iec_par_data_out,
+
+         rom_std_i    => '0',
+         rom_addr_i   => (others => '0'),
+         rom_data_i   => (others => '0'),
+         rom_data_o   => open,
+         rom_wr_i     => '1'
       ); -- c1541_multi_inst
 
    -- 16 MHz chip enable for the IEC drives, so that ph2_r and ph2_f can be 1 MHz (C1541's CPU runs with 1 MHz)
@@ -384,10 +509,10 @@ begin
          reset_core_i     => not reset_core_n,
 
          -- MiSTer's "SD config" interface, which runs in the core's clock domain
-         img_mounted_o    => iec_img_mounted_i,
-         img_readonly_o   => iec_img_readonly_i,
-         img_size_o       => iec_img_size_i,
-         img_type_o       => iec_img_type_i,
+         img_mounted_o    => iec_img_mounted,
+         img_readonly_o   => iec_img_readonly,
+         img_size_o       => iec_img_size,
+         img_type_o       => iec_img_type,
 
          -- While "img_mounted_o" needs to be strobed, "drive_mounted" latches the strobe in the core's clock domain,
          -- so that it can be used for resetting (and unresetting) the drive.
@@ -402,18 +527,18 @@ begin
 
          -- MiSTer's "SD block level access" interface, which runs in QNICE's clock domain
          -- using dedicated signal on Mister's side such as "clk_sys"
-         sd_lba_i         => iec_sd_lba_o,
-         sd_blk_cnt_i     => iec_sd_blk_cnt_o,
-         sd_rd_i          => iec_sd_rd_o,
-         sd_wr_i          => iec_sd_wr_o,
-         sd_ack_o         => iec_sd_ack_i,
+         sd_lba_i         => iec_sd_lba,
+         sd_blk_cnt_i     => iec_sd_blk_cnt,
+         sd_rd_i          => iec_sd_rd,
+         sd_wr_i          => iec_sd_wr,
+         sd_ack_o         => iec_sd_ack,
 
          -- MiSTer's "SD byte level access": the MiSTer components use a combination of the drive-specific sd_ack and the sd_buff_wr
          -- to determine, which RAM buffer actually needs to be written to (using the clk_qnice_i clock domain)
-         sd_buff_addr_o   => iec_sd_buf_addr_i,
-         sd_buff_dout_o   => iec_sd_buf_data_i,
-         sd_buff_din_i    => iec_sd_buf_data_o,
-         sd_buff_wr_o     => iec_sd_buf_wr_i,
+         sd_buff_addr_o   => iec_sd_buf_addr,
+         sd_buff_dout_o   => iec_sd_buf_data_in,
+         sd_buff_din_i    => iec_sd_buf_data_out,
+         sd_buff_wr_o     => iec_sd_buf_wr,
 
          -- QNICE interface (MMIO, 4k-segmented)
          -- qnice_addr is 28-bit because we have a 16-bit window selector and a 4k window: 65536*4096 = 268.435.456 = 2^28

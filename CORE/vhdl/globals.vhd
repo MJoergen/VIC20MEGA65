@@ -74,9 +74,9 @@ constant VRAM_ADDR_WIDTH      : natural := f_log2(CHAR_MEM_SIZE);
 -- VIC 20 specific devices
 ----------------------------------------------------------------------------------------------------------
 
-constant C_DEV_VIC20_RAM           : std_logic_vector(15 downto 0) := x"0100";     -- VIC20's main RAM
-constant C_DEV_VIC20_VDRIVES       : std_logic_vector(15 downto 0) := x"0101";     -- Virtual Device Management System
-constant C_DEV_VIC20_MOUNT         : std_logic_vector(15 downto 0) := x"0102";     -- RAM to buffer disk images
+constant C_DEV_VIC20_RAM      : std_logic_vector(15 downto 0) := x"0100";     -- VIC20's main RAM
+constant C_DEV_VIC20_VDRIVES  : std_logic_vector(15 downto 0) := x"0101";     -- Virtual Device Management System
+constant C_DEV_VIC20_MOUNT    : std_logic_vector(15 downto 0) := x"0102";     -- RAM to buffer disk images
 
 
 ----------------------------------------------------------------------------------------------------------

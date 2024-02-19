@@ -224,9 +224,9 @@ architecture synthesis of mega65_core is
    -- Clocks and active high reset signals for each clock domain
    ---------------------------------------------------------------------------------------------
 
-   signal   main_clk  : std_logic; -- Core main clock
+   signal   main_clk  : std_logic;                                         -- Core main clock
    signal   main_rst  : std_logic;
-   signal   video_clk : std_logic; -- Core video clock
+   signal   video_clk : std_logic;                                         -- Core video clock
    signal   video_rst : std_logic;
 
    ---------------------------------------------------------------------------------------------
@@ -247,13 +247,12 @@ architecture synthesis of mega65_core is
    signal   qnice_vic20_qnice_data : std_logic_vector(15 downto 0);
 
    signal   qnice_vic20_mount_buf_ram_we   : std_logic;
-   signal   qnice_vic20_mount_buf_ram_data : std_logic_vector(7 downto 0);  -- Disk mount buffer
-
+   signal   qnice_vic20_mount_buf_ram_data : std_logic_vector(7 downto 0); -- Disk mount buffer
 
    -- Menu items
-   constant C_MENU_HDMI_16_9_50  : natural :=  7;
-   constant C_MENU_HDMI_16_9_60  : natural :=  8;
-   constant C_MENU_HDMI_4_3_50   : natural :=  9;
+   constant C_MENU_HDMI_16_9_50  : natural := 7;
+   constant C_MENU_HDMI_16_9_60  : natural := 8;
+   constant C_MENU_HDMI_4_3_50   : natural := 9;
    constant C_MENU_HDMI_5_4_50   : natural := 10;
    constant C_MENU_HDMI_640_60   : natural := 11;
    constant C_MENU_HDMI_720_5994 : natural := 12;
@@ -353,6 +352,8 @@ begin
          reset_hard_i           => main_reset_m2m_i,
          pause_i                => main_pause_core_i,
 
+         vic20_rom_i            => '0',
+
          clk_main_speed_i       => CORE_CLK_SPEED,
 
          -- Access to VIC 20 main memory
@@ -365,9 +366,9 @@ begin
          -- This is PAL 720x576 @ 50 Hz (pixel clock 27 MHz), but synchronized to main_clk (54 MHz).
          video_ce_o             => video_ce_o,
          video_ce_ovl_o         => video_ce_ovl_o,
-         video_red_o            => video_red_o,
-         video_green_o          => video_green_o,
-         video_blue_o           => video_blue_o,
+         video_red_o            => video_red_o(7 downto 4),
+         video_green_o          => video_green_o(7 downto 4),
+         video_blue_o           => video_blue_o(7 downto 4),
          video_vs_o             => video_vs_o,
          video_hs_o             => video_hs_o,
          video_hblank_o         => video_hblank_o,
@@ -380,6 +381,10 @@ begin
          -- M2M Keyboard interface
          kb_key_num_i           => main_kb_key_num_i,
          kb_key_pressed_n_i     => main_kb_key_pressed_n_i,
+
+         -- VIC20 drive led
+         drive_led_o            => main_drive_led_o,
+         drive_led_col_o        => main_drive_led_col_o,
 
          -- VIC20 IEC handled by QNICE
          vic20_clk_sd_i         => qnice_clk_i,
@@ -411,18 +416,13 @@ begin
          joy_1_right_n_i        => main_joy_1_right_n_i,
          joy_1_fire_n_i         => main_joy_1_fire_n_i,
 
-         joy_2_up_n_i           => main_joy_2_up_n_i,
-         joy_2_down_n_i         => main_joy_2_down_n_i,
-         joy_2_left_n_i         => main_joy_2_left_n_i,
-         joy_2_right_n_i        => main_joy_2_right_n_i,
-         joy_2_fire_n_i         => main_joy_2_fire_n_i,
-
          pot1_x_i               => main_pot1_x_i,
-         pot1_y_i               => main_pot1_y_i,
-         pot2_x_i               => main_pot2_x_i,
-         pot2_y_i               => main_pot2_y_i
+         pot1_y_i               => main_pot1_y_i
       ); -- main_inst
 
+   video_red_o(3 downto 0)   <= "0000";
+   video_green_o(3 downto 0) <= "0000";
+   video_blue_o(3 downto 0)  <= "0000";
 
 
    ---------------------------------------------------------------------------------------------
@@ -487,11 +487,14 @@ begin
    core_specific_devices_proc : process (all)
    begin
       -- Avoid latches
-      qnice_dev_data_o <= x"EEEE";
-      qnice_dev_wait_o <= '0';
-      qnice_conf_ai    <= (others => '0');
-      qnice_conf_wr    <= '0';
-      qnice_conf_di    <= (others => '0');
+      qnice_dev_data_o             <= x"EEEE";
+      qnice_dev_wait_o             <= '0';
+      qnice_conf_ai                <= (others => '0');
+      qnice_conf_wr                <= '0';
+      qnice_conf_di                <= (others => '0');
+      qnice_vic20_qnice_ce         <= '0';
+      qnice_vic20_qnice_we         <= '0';
+      qnice_vic20_mount_buf_ram_we <= '0';
 
       case qnice_dev_id_i is
 
@@ -502,10 +505,10 @@ begin
             qnice_conf_di <= qnice_dev_data_i(7 downto 0);
 
          -- VIC20 IEC drives
-         when C_VD_DEVICE =>
-            qnice_vic20_qnice_ce       <= qnice_dev_ce_i;
-            qnice_vic20_qnice_we       <= qnice_dev_we_i;
-            qnice_dev_data_o           <= qnice_vic20_qnice_data;
+         when C_DEV_VIC20_VDRIVES =>
+            qnice_vic20_qnice_ce <= qnice_dev_ce_i;
+            qnice_vic20_qnice_we <= qnice_dev_we_i;
+            qnice_dev_data_o     <= qnice_vic20_qnice_data;
 
          -- Disk mount buffer RAM
          when C_DEV_VIC20_MOUNT =>
@@ -523,26 +526,21 @@ begin
    -- For now: Let's use a simple BRAM (using only 1 port will make a BRAM) for buffering
    -- the disks that we are mounting. This will work for D64 only.
    -- @TODO: Switch to HyperRAM at a later stage
-   mount_buf_ram : entity work.dualport_2clk_ram
+   mount_buf_ram_inst : entity work.dualport_2clk_ram
       generic map (
-         ADDR_WIDTH        => 18,
-         DATA_WIDTH        => 8,
-         MAXIMUM_SIZE      => 197376,        -- maximum size of any D64 image: non-standard 40-track incl. 768 error bytes
-         FALLING_A         => true
+         ADDR_WIDTH   => 18,
+         DATA_WIDTH   => 8,
+         MAXIMUM_SIZE => 197376,
+         FALLING_A    => true
       )
       port map (
          -- QNICE only
-         clock_a           => qnice_clk_i,
-         address_a         => qnice_dev_addr_i(17 downto 0),
-         data_a            => qnice_dev_data_i(7 downto 0),
-         wren_a            => qnice_vic20_mount_buf_ram_we,
-         q_a               => qnice_vic20_mount_buf_ram_data
-      ); -- mount_buf_ram
-
-
-
-   main_drive_led_o        <= '0';
-   main_drive_led_col_o    <= x"00FF00"; -- 24-bit RGB value for the led
+         clock_a   => qnice_clk_i,
+         address_a => qnice_dev_addr_i(17 downto 0),
+         data_a    => qnice_dev_data_i(7 downto 0),
+         wren_a    => qnice_vic20_mount_buf_ram_we,
+         q_a       => qnice_vic20_mount_buf_ram_data
+      ); -- mount_buf_ram_inst
 
 end architecture synthesis;
 
