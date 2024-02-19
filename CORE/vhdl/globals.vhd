@@ -1,7 +1,8 @@
 ----------------------------------------------------------------------------------
 -- MiSTer2MEGA65 Framework
 --
--- Global constants
+-- VIC 20 for MEGA65
+-- Global Constants
 --
 -- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022 and licensed under GPL v3
 ----------------------------------------------------------------------------------
@@ -120,10 +121,10 @@ constant C_CRTROMTYPE_SDRAM      : std_logic_vector(15 downto 0) := x"0002";    
 constant C_CRTROMTYPE_MANDATORY  : std_logic_vector(15 downto 0) := x"0003";
 constant C_CRTROMTYPE_OPTIONAL   : std_logic_vector(15 downto 0) := x"0004";
 
-
 -- Manually loadable ROMs and cartridges as defined in config.vhd
+--
 -- If you are not using this, then make sure that:
---    C_CRTROM_MAN_NUM    is 0
+--    C_CRTROMS_MAN_NUM   is 0
 --    C_CRTROMS_MAN       is (x"EEEE", x"EEEE", x"EEEE")
 -- Each entry of the array consists of two constants:
 --    1) Type of CRT or ROM: Load to a QNICE device, load into HyperRAM, load into SDRAM

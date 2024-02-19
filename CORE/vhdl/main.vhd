@@ -22,7 +22,13 @@ entity main is
       clk_video_i            : in    std_logic;
       reset_soft_i           : in    std_logic;
       reset_hard_i           : in    std_logic;
+
+      -- Pull high to pause the core
       pause_i                : in    std_logic;
+
+      ---------------------------
+      -- Configuration options
+      ---------------------------
 
       -- Select VIC20's ROM: 0=Custom, 1=Standard
       vic20_rom_i            : in    std_logic;
@@ -31,11 +37,23 @@ entity main is
       -- Make sure you pass very exact numbers here, because they are used for avoiding clock drift at derived clocks
       clk_main_speed_i       : in    natural;
 
-      -- Access to main memory
-      conf_clk_i             : in    std_logic;
-      conf_wr_i              : in    std_logic;
-      conf_ai_i              : in    std_logic_vector(15 downto 0);
-      conf_di_i              : in    std_logic_vector(7 downto 0);
+      ---------------------------
+      -- VIC 20 I/O ports
+      ---------------------------
+
+      -- M2M Keyboard interface
+      kb_key_num_i           : in    integer range 0 to 79; -- cycles through all MEGA65 keys
+      kb_key_pressed_n_i     : in    std_logic;             -- low active: debounced feedback: is kb_key_num_i pressed right now?
+
+      -- MEGA65 joysticks and paddles/mouse/potentiometers
+      joy_1_up_n_i           : in    std_logic;
+      joy_1_down_n_i         : in    std_logic;
+      joy_1_left_n_i         : in    std_logic;
+      joy_1_right_n_i        : in    std_logic;
+      joy_1_fire_n_i         : in    std_logic;
+
+      pot1_x_i               : in    std_logic_vector(7 downto 0);
+      pot1_y_i               : in    std_logic_vector(7 downto 0);
 
       -- Video output
       video_ce_o             : out   std_logic;
@@ -56,9 +74,12 @@ entity main is
       drive_led_o            : out   std_logic;
       drive_led_col_o        : out   std_logic_vector(23 downto 0);
 
-      -- M2M Keyboard interface
-      kb_key_num_i           : in    integer range 0 to 79; -- cycles through all MEGA65 keys
-      kb_key_pressed_n_i     : in    std_logic;             -- low active: debounced feedback: is kb_key_num_i pressed right now?
+      -- Access to main memory
+      conf_clk_i             : in    std_logic;
+      conf_wr_i              : in    std_logic;
+      conf_ai_i              : in    std_logic_vector(15 downto 0);
+      conf_di_i              : in    std_logic_vector(7 downto 0);
+
 
       -- VIC20 IEC handled by QNICE
       vic20_clk_sd_i         : in    std_logic;             -- QNICE "sd card write clock" for floppy drive internal dual clock RAM buffer
@@ -80,17 +101,8 @@ entity main is
       iec_data_n_o           : out   std_logic;
       iec_srq_en_o           : out   std_logic;
       iec_srq_n_i            : in    std_logic;
-      iec_srq_n_o            : out   std_logic;
+      iec_srq_n_o            : out   std_logic
 
-      -- MEGA65 joysticks and paddles/mouse/potentiometers
-      joy_1_up_n_i           : in    std_logic;
-      joy_1_down_n_i         : in    std_logic;
-      joy_1_left_n_i         : in    std_logic;
-      joy_1_right_n_i        : in    std_logic;
-      joy_1_fire_n_i         : in    std_logic;
-
-      pot1_x_i               : in    std_logic_vector(7 downto 0);
-      pot1_y_i               : in    std_logic_vector(7 downto 0)
    );
 end entity main;
 
@@ -99,31 +111,7 @@ architecture synthesis of main is
    -- Generic MiSTer VIC20 signals
    signal   vic20_drive_led : std_logic;
 
-   signal   reset_core_n     : std_logic;
-   signal   reset_core_int_n : std_logic;
-   signal   hard_reset_n     : std_logic := '1';
-
-   constant C_HARD_RST_DELAY : natural   := 100_000;      -- roundabout 1/30 of a second
-   signal   hard_rst_counter : natural   := 0;
-
-   signal   keyboard_n : std_logic_vector(79 downto 0);
-
-   signal   o_io2_sel     : std_logic;
-   signal   o_io3_sel     : std_logic;
-   signal   o_blk123_sel  : std_logic;
-   signal   o_blk5_sel    : std_logic;
-   signal   o_ram123_sel  : std_logic;
-   signal   o_audio       : std_logic_vector(5 downto 0);
-   signal   o_hsync       : std_logic;
-   signal   o_vsync       : std_logic;
-
-   signal   div     : unsigned(1 downto 0);
-   signal   v20_en  : std_logic;
-   signal   div_ovl : unsigned(0 downto 0);
-
-   signal   video_ce   : std_logic;
-   signal   video_ce_d : std_logic;
-
+-- directly connect the VIC20's CIA1 to the emulated keyboard matrix within keyboard.vhd
    signal   cia1_pa_in  : std_logic_vector(7 downto 0);
    signal   cia1_pa_out : std_logic_vector(7 downto 0);
    signal   cia1_pb_in  : std_logic_vector(7 downto 0);
@@ -171,6 +159,26 @@ architecture synthesis of main is
    signal   iec_par_data_in     : std_logic_vector(7 downto 0);
    signal   iec_par_data_out    : std_logic_vector(7 downto 0);
 
+   -- unprocessed video output of the VIC20 core
+   signal   o_audio     : std_logic_vector(5 downto 0);
+   signal   o_hsync     : std_logic;
+   signal   o_vsync     : std_logic;
+
+   signal   div     : unsigned(1 downto 0);
+   signal   v20_en  : std_logic;
+   signal   div_ovl : unsigned(0 downto 0);
+
+   -- clock enable to derive the VIC20's pixel clock from the core's main clock
+   signal   video_ce   : std_logic;
+   signal   video_ce_d : std_logic;
+
+   signal   reset_core_n     : std_logic := '1';
+   signal   reset_core_int_n : std_logic := '1';
+   signal   hard_reset_n     : std_logic := '1';
+
+   constant C_HARD_RST_DELAY : natural   := 100_000;      -- roundabout 1/30 of a second
+   signal   hard_rst_counter : natural   := 0;
+
 begin
 
    -- prevent data corruption by not allowing a soft reset to happen while the cache is still dirty
@@ -188,7 +196,6 @@ begin
    -- or if the dirty cache is dirty and/orcurrently being flushed to the SD card
    drive_led_o     <= vic20_drive_led when unsigned(cache_dirty) = 0 else
                       '1';
-
 
    --------------------------------------------------------------------------------------------------
    -- Hard reset
@@ -249,20 +256,6 @@ begin
       end if;
    end process v20_en_proc;
 
-   video_ce_proc : process (clk_video_i)
-   begin
-      if rising_edge(clk_video_i) then
-         video_ce_d     <= video_ce;
-         video_ce_o     <= video_ce and not video_ce_d;
-
-         div_ovl        <= div_ovl + 1;
-         video_ce_ovl_o <= and(div_ovl);
-      end if;
-   end process video_ce_proc;
-
-   audio_left_o    <= signed("0" & o_audio & "000000000");
-   audio_right_o   <= signed("0" & o_audio & "000000000");
-
    vic20_inst : entity work.vic20
       port map (
          i_sysclk      => clk_main_i,
@@ -287,11 +280,11 @@ begin
          o_extmem_addr => open,
          i_extmem_data => x"00",
          o_extmem_data => open,
-         o_io2_sel     => o_io2_sel,
-         o_io3_sel     => o_io3_sel,
-         o_blk123_sel  => o_blk123_sel,
-         o_blk5_sel    => o_blk5_sel,
-         o_ram123_sel  => o_ram123_sel,
+         o_io2_sel     => open,
+         o_io3_sel     => open,
+         o_blk123_sel  => open,
+         o_blk5_sel    => open,
+         o_ram123_sel  => open,
          o_ce_pix      => video_ce,
          o_video_r     => video_red_o,
          o_video_g     => video_green_o,
@@ -319,6 +312,23 @@ begin
          conf_di       => conf_di_i
       ); -- vic20_inst
 
+   video_ce_proc : process (clk_video_i)
+   begin
+      if rising_edge(clk_video_i) then
+         video_ce_d     <= video_ce;
+         video_ce_o     <= video_ce and not video_ce_d;
+
+         div_ovl        <= div_ovl + 1;
+         video_ce_ovl_o <= and(div_ovl);
+      end if;
+   end process video_ce_proc;
+
+   --------------------------------------------------------------------------------------------------
+   -- Keyboard- and joystick controller
+   --------------------------------------------------------------------------------------------------
+
+   -- Convert MEGA65 keystrokes to the VIC20 keyboard matrix that the CIA1 can scan
+   -- and convert the MEGA65 joystick signals to CIA1 signals as well
    keyboard_inst : entity work.keyboard
       port map (
          clk_main_i      => clk_main_i,
@@ -337,6 +347,9 @@ begin
          -- Restore key = NMI
          restore_n       => restore_key_n
       ); -- keyboard_inst
+
+   audio_left_o    <= signed("0" & o_audio & "000000000");
+   audio_right_o   <= signed("0" & o_audio & "000000000");
 
 
    --------------------------------------------------------------------------------------------------

@@ -762,7 +762,7 @@
         </FileInfo>
       </File>
       <File Path="$PPRDIR/VIC20_MiSTer/rtl/iec_drive/iecdrv_via6522.vhd">
-        <FileInfo>
+        <FileInfo SFType="VHDL2008">
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>

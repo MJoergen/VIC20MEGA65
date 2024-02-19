@@ -351,11 +351,6 @@ constant OPTM_ITEMS        : string :=
    "\n"                        &
    " Close Menu\n";
 
--- define your own constants here and choose meaningful names
--- make sure that your first group uses the value 1 (0 means "no menu item", such as text and line),
--- and be aware that you can only have a maximum of 254 groups (255 means "Close Menu");
--- also make sure that your group numbers are monotonic increasing (e.g. 1, 2, 3, 4, ...)
--- single-select items and therefore also drive mount items need to have unique identifiers
 constant OPTM_G_MOUNT_8    : integer := 1;
 constant OPTM_G_HDMI       : integer := 2;
 constant OPTM_G_CRT        : integer := 6;

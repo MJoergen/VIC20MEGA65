@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------------------------------------
--- MiSTer2MEGA65 Framework  
+-- VIC 20 for MEGA65 (C64MEGA65)
 --
 -- Clock Generator using the Xilinx specific MMCME2_ADV:
 --
