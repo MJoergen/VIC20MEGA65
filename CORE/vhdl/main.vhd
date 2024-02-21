@@ -175,7 +175,6 @@ architecture synthesis of main is
    signal   video_ce_d : std_logic;
 
    signal   reset_core_n     : std_logic := '1';
-   signal   reset_core_int_n : std_logic := '1';
    signal   hard_reset_n     : std_logic := '1';
 
    constant C_HARD_RST_DELAY : natural   := 100_000; -- roundabout 1/30 of a second
@@ -216,14 +215,14 @@ begin
 
             -- reset_core_n is low-active, so prevent_reset = 0 means execute reset
             -- but a hard reset can override
-            reset_core_int_n <= prevent_reset and (not reset_hard_i);
+            reset_core_n <= prevent_reset and (not reset_hard_i);
          else
             -- The idea of the hard reset is, that while reset_core_n is back at '1' and therefore the core is
             -- running (not being reset any more), hard_reset_n stays low for C_HARD_RST_DELAY clock cycles.
             -- Reason: We need to give the KERNAL time to execute the routine $FD02 where it checks for the
             -- cartridge signature "CBM80" in $8003 onwards. In case reset_n = '0' during these tests (i.e. hard
             -- reset active) we will return zero instead of "CBM80" and therefore perform a hard reset.
-            reset_core_int_n <= '1';
+            reset_core_n <= '1';
             if hard_rst_counter = 0 then
                hard_reset_n <= '1';
             else
@@ -232,19 +231,6 @@ begin
          end if;
       end if;
    end process hard_reset_proc;
-
-   -- Combined reset signal to be used throughout main.vhd: reset triggered by the MEGA65's reset button (reset_core_int_n)
-   -- and reset triggered by an external cartridge.
-   combined_reset_proc : process (all)
-   begin
-      reset_core_n <= '1';
-
-      if reset_core_int_n = '0' then
-         reset_core_n <= '0';
-      elsif prevent_reset = '0' then
-         reset_core_n <= '0';
-      end if;
-   end process combined_reset_proc;
 
 
    video_hs_o      <= not o_hsync;
@@ -502,7 +488,7 @@ begin
          par_data_i   => iec_par_data_in,
          par_data_o   => iec_par_data_out,
 
-         rom_std_i    => '0',
+         rom_std_i    => '1', -- 1=use the factory default ROM
          rom_addr_i   => (others => '0'),
          rom_data_i   => (others => '0'),
          rom_data_o   => open,
