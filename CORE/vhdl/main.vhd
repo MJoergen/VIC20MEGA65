@@ -12,7 +12,7 @@ library ieee;
    use ieee.numeric_std.all;
 
 library work;
-   use work.vdrives_pkg;
+   use work.vdrives_pkg.all;
 
 entity main is
    generic (
@@ -147,14 +147,14 @@ architecture synthesis of main is
    signal   cache_dirty      : std_logic_vector(G_VDNUM - 1 downto 0);
    signal   prevent_reset    : std_logic;
 
-   signal   iec_sd_lba          : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)(31 downto 0);
-   signal   iec_sd_blk_cnt      : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)( 5 downto 0);
-   signal   iec_sd_rd           : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
-   signal   iec_sd_wr           : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
-   signal   iec_sd_ack          : vdrives_pkg.vd_std_array(G_VDNUM - 1 downto 0);
+   signal   iec_sd_lba          : vd_vec_array(G_VDNUM - 1 downto 0)(31 downto 0);
+   signal   iec_sd_blk_cnt      : vd_vec_array(G_VDNUM - 1 downto 0)( 5 downto 0);
+   signal   iec_sd_rd           : vd_std_array(G_VDNUM - 1 downto 0);
+   signal   iec_sd_wr           : vd_std_array(G_VDNUM - 1 downto 0);
+   signal   iec_sd_ack          : vd_std_array(G_VDNUM - 1 downto 0);
    signal   iec_sd_buf_addr     : std_logic_vector(13 downto 0);
    signal   iec_sd_buf_data_in  : std_logic_vector( 7 downto 0);
-   signal   iec_sd_buf_data_out : vdrives_pkg.vd_vec_array(G_VDNUM - 1 downto 0)(7 downto 0);
+   signal   iec_sd_buf_data_out : vd_vec_array(G_VDNUM - 1 downto 0)(7 downto 0);
    signal   iec_sd_buf_wr       : std_logic;
    signal   iec_par_stb_in      : std_logic;
    signal   iec_par_stb_out     : std_logic;
@@ -376,8 +376,8 @@ begin
    -- MiSTer audio signal processing: Convert the core's 6-bit signal to a signed 16-bit signal
    --------------------------------------------------------------------------------------------------
 
-   audio_left_o    <= signed("0" & o_audio & "000000000");
-   audio_right_o   <= signed("0" & o_audio & "000000000");
+   audio_left_o    <= "0" & signed(o_audio) & "000000000";
+   audio_right_o   <= "0" & signed(o_audio) & "000000000";
 
 
    --------------------------------------------------------------------------------------------------
