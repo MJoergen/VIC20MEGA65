@@ -247,10 +247,15 @@ architecture synthesis of mega65_core is
    constant C_MENU_HDMI_640_60   : natural := 11;
    constant C_MENU_HDMI_720_5994 : natural := 12;
    constant C_MENU_SVGA_800_60   : natural := 13;
-   constant C_MENU_IEC           : natural := 17;
-   constant C_MENU_CRT_EMULATION : natural := 18;
-   constant C_MENU_HDMI_ZOOM     : natural := 19;
-   constant C_MENU_IMPROVE_AUDIO : natural := 20;
+   constant C_MENU_RAM_0400      : natural := 19;
+   constant C_MENU_RAM_2000      : natural := 20;
+   constant C_MENU_RAM_4000      : natural := 21;
+   constant C_MENU_RAM_6000      : natural := 22;
+   constant C_MENU_RAM_A000      : natural := 23;
+   constant C_MENU_IEC           : natural := 27;
+   constant C_MENU_CRT_EMULATION : natural := 28;
+   constant C_MENU_HDMI_ZOOM     : natural := 29;
+   constant C_MENU_IMPROVE_AUDIO : natural := 30;
 
    signal   qnice_conf_wr : std_logic;
    signal   qnice_conf_ai : std_logic_vector(15 downto 0);
@@ -363,6 +368,11 @@ begin
          ---------------------------
 
          vic20_rom_i            => '0',
+         ram_ext_i              => main_osm_control_i(C_MENU_RAM_A000) &
+                                   main_osm_control_i(C_MENU_RAM_6000) &
+                                   main_osm_control_i(C_MENU_RAM_4000) &
+                                   main_osm_control_i(C_MENU_RAM_2000) &
+                                   main_osm_control_i(C_MENU_RAM_0400),
 
          clk_main_speed_i       => CORE_CLK_SPEED,
 

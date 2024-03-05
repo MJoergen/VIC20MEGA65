@@ -313,7 +313,7 @@ constant OPTM_S_SAVING     : string := "<Saving>";          -- the internal writ
 --             Do use a lower case \n. If you forget one of them or if you use upper case, you will run into undefined behavior.
 --          2. Start each line that contains an actual menu item (multi- or single-select) with a Space character,
 --             otherwise you will experience visual glitches.
-constant OPTM_SIZE         : natural := 23;  -- amount of items including empty lines:
+constant OPTM_SIZE         : natural := 33;  -- amount of items including empty lines:
                                              -- needs to be equal to the number of lines in OPTM_ITEMS and amount of items in OPTM_GROUPS
                                              -- IMPORTANT: If SAVE_SETTINGS is true and OPTM_SIZE changes: Make sure to re-generate and
                                              -- and re-distribute the config file. You can make a new one using M2M/tools/make_config.sh
@@ -343,6 +343,17 @@ constant OPTM_ITEMS        : string :=
    "\n"                        &
    " Back to main menu\n"      &
 
+   " RAM: %s\n"                &    -- RAM submenu
+   " RAM expansions\n"         &
+   "\n"                        &
+   " $0400(3KB)\n"             &
+   " $2000(8KB)\n"             &
+   " $4000(8KB)\n"             &
+   " $6000(8KB)\n"             &
+   " $A000(8KB)\n"             &
+   "\n"                        &
+   " Back to main menu\n"      &
+
    "\n"                        &
    " IEC: Use hardware port\n" &
    " HDMI: CRT emulation\n"    &
@@ -353,6 +364,7 @@ constant OPTM_ITEMS        : string :=
 
 constant OPTM_G_MOUNT_8    : integer := 1;
 constant OPTM_G_HDMI       : integer := 2;
+constant OPTM_G_RAM        : integer := 3;
 constant OPTM_G_CRT        : integer := 6;
 constant OPTM_G_ZOOM       : integer := 7;
 constant OPTM_G_AUDIO      : integer := 8;
@@ -382,6 +394,18 @@ constant OPTM_GROUPS       : OPTM_GTYPE := ( OPTM_G_TEXT    + OPTM_G_HEADLINE,  
                                              OPTM_G_LINE,                              -- open
                                              OPTM_G_CLOSE   + OPTM_G_SUBMENU,          -- Close submenu / back to main menu
                                                                                        -- HDMI submenu block: END
+
+                                             OPTM_G_SUBMENU,                           -- RAM submenu block: START: "RAM: %s"
+                                             OPTM_G_TEXT    + OPTM_G_HEADLINE,         -- Headline "RAM expansions"
+                                             OPTM_G_LINE,                              -- Line
+                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $0400 (3KB)
+                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $2000 (8KB)
+                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $4000 (8KB)
+                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $6000 (8KB)
+                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $A000 (8KB)
+                                             OPTM_G_LINE,                              -- open
+                                             OPTM_G_CLOSE   + OPTM_G_SUBMENU,          -- Close submenu / back to main menu
+                                                                                       -- RAM submenu block: END
 
                                              OPTM_G_LINE,                              -- Line
                                              OPTM_G_IEC     + OPTM_G_SINGLESEL,        -- IEC: Use hardware port

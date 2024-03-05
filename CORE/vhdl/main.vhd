@@ -35,6 +35,7 @@ entity main is
 
       -- Select VIC20's ROM: 0=Custom, 1=Standard
       vic20_rom_i            : in    std_logic;
+      ram_ext_i              : in    std_logic_vector(4 downto 0);
 
       -- MiSTer core main clock speed:
       -- Make sure you pass very exact numbers here, because they are used for avoiding clock drift at derived clocks
@@ -83,8 +84,7 @@ entity main is
       conf_di_i              : in    std_logic_vector(7 downto 0);
       conf_wr_i              : in    std_logic;
 
-
-      -- VIC20 IEC handled by QNICE
+      -- IEC handled by QNICE
       iec_clk_sd_i           : in    std_logic;             -- QNICE "sd card write clock" for floppy drive internal dual clock RAM buffer
       iec_qnice_addr_i       : in    std_logic_vector(27 downto 0);
       iec_qnice_data_i       : in    std_logic_vector(15 downto 0);
@@ -111,7 +111,7 @@ end entity main;
 architecture synthesis of main is
 
    -- Generic MiSTer VIC20 signals
-   signal   vic20_drive_led : std_logic;
+   signal   drive_led : std_logic;
 
    -- directly connect the VIC20's CIA1 to the emulated keyboard matrix within keyboard.vhd
    signal   cia1_pa_in  : std_logic_vector(7 downto 0);
@@ -195,7 +195,7 @@ begin
 
    -- the drive led is on if either the C64 is writing to the virtual disk (cached in RAM)
    -- or if the dirty cache is dirty and/orcurrently being flushed to the SD card
-   drive_led_o     <= vic20_drive_led when unsigned(cache_dirty) = 0 else
+   drive_led_o     <= drive_led when unsigned(cache_dirty) = 0 else
                       '1';
 
    --------------------------------------------------------------------------------------------------
@@ -256,7 +256,7 @@ begin
          i_restore_n   => restore_key_n,
          o_p2h         => open,
          i_ram_ext_ro  => "00000", -- read-only region if set
-         i_ram_ext     => "00000", -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
+         i_ram_ext     => ram_ext_i, -- -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
          i_extmem_en   => '0',
          o_extmem_sel  => open,
          o_extmem_r_wn => open,
@@ -296,6 +296,7 @@ begin
 
          o_audio       => o_audio,
 
+         -- IEC
          clk_i         => vic20_iec_clk_in and hw_iec_clk_n_in,
          clk_o         => vic20_iec_clk_out,
          atn_o         => vic20_iec_atn_out,
@@ -480,7 +481,7 @@ begin
          sd_buff_wr   => iec_sd_buf_wr,
 
          -- drive led
-         led          => vic20_drive_led,
+         led          => drive_led,
 
          -- Parallel C1541 port
          par_stb_i    => iec_par_stb_in,
