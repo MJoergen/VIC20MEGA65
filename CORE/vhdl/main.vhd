@@ -85,12 +85,12 @@ entity main is
 
 
       -- VIC20 IEC handled by QNICE
-      vic20_clk_sd_i         : in    std_logic;             -- QNICE "sd card write clock" for floppy drive internal dual clock RAM buffer
-      vic20_qnice_addr_i     : in    std_logic_vector(27 downto 0);
-      vic20_qnice_data_i     : in    std_logic_vector(15 downto 0);
-      vic20_qnice_data_o     : out   std_logic_vector(15 downto 0);
-      vic20_qnice_ce_i       : in    std_logic;
-      vic20_qnice_we_i       : in    std_logic;
+      iec_clk_sd_i           : in    std_logic;             -- QNICE "sd card write clock" for floppy drive internal dual clock RAM buffer
+      iec_qnice_addr_i       : in    std_logic_vector(27 downto 0);
+      iec_qnice_data_i       : in    std_logic_vector(15 downto 0);
+      iec_qnice_data_o       : out   std_logic_vector(15 downto 0);
+      iec_qnice_ce_i         : in    std_logic;
+      iec_qnice_we_i         : in    std_logic;
 
       -- CBM-488/IEC serial (hardware) port
       iec_hardware_port_en_i : in    std_logic;
@@ -134,8 +134,8 @@ architecture synthesis of main is
    signal   hw_iec_data_n_in : std_logic;
 
    -- Simulated IEC drives
-   signal   iec_drive_ce : std_logic;                -- chip enable for iec_drive (clock divider, see generate_drive_ce below)
-   signal   iec_dce_sum  : integer       := 0;       -- caution: we expect 32-bit integers here and we expect the initialization to 0
+   signal   iec_drive_ce : std_logic;              -- chip enable for iec_drive (clock divider, see generate_drive_ce below)
+   signal   iec_dce_sum  : integer     := 0;       -- caution: we expect 32-bit integers here and we expect the initialization to 0
 
    signal   iec_img_mounted  : std_logic_vector(G_VDNUM - 1 downto 0);
    signal   iec_img_readonly : std_logic;
@@ -174,11 +174,11 @@ architecture synthesis of main is
    signal   video_ce   : std_logic;
    signal   video_ce_d : std_logic;
 
-   signal   reset_core_n     : std_logic := '1';
-   signal   hard_reset_n     : std_logic := '1';
+   signal   reset_core_n : std_logic   := '1';
+   signal   hard_reset_n : std_logic   := '1';
 
-   constant C_HARD_RST_DELAY : natural   := 100_000; -- roundabout 1/30 of a second
-   signal   hard_rst_counter : natural   := 0;
+   constant C_HARD_RST_DELAY : natural := 100_000; -- roundabout 1/30 of a second
+   signal   hard_rst_counter : natural := 0;
 
 begin
 
@@ -464,10 +464,10 @@ begin
          img_mounted  => iec_img_mounted,
          img_readonly => iec_img_readonly,
          img_size     => iec_img_size,
-         gcr_mode     => "00",   -- D64
+         gcr_mode     => "00",                -- D64
 
          -- QNICE SD-Card/FAT32 interface
-         clk_sys      => vic20_clk_sd_i,
+         clk_sys      => iec_clk_sd_i,
 
          sd_lba       => iec_sd_lba,
          sd_blk_cnt   => iec_sd_blk_cnt,
@@ -475,8 +475,8 @@ begin
          sd_wr        => iec_sd_wr,
          sd_ack       => iec_sd_ack,
          sd_buff_addr => iec_sd_buf_addr,
-         sd_buff_dout => iec_sd_buf_data_in,           -- data from SD card to the buffer RAM within the drive ("dout" is a strange name)
-         sd_buff_din  => iec_sd_buf_data_out,          -- read the buffer RAM within the drive
+         sd_buff_dout => iec_sd_buf_data_in,  -- data from SD card to the buffer RAM within the drive ("dout" is a strange name)
+         sd_buff_din  => iec_sd_buf_data_out, -- read the buffer RAM within the drive
          sd_buff_wr   => iec_sd_buf_wr,
 
          -- drive led
@@ -488,7 +488,7 @@ begin
          par_data_i   => iec_par_data_in,
          par_data_o   => iec_par_data_out,
 
-         rom_std_i    => '1', -- 1=use the factory default ROM
+         rom_std_i    => '1',                 -- 1=use the factory default ROM
          rom_addr_i   => (others => '0'),
          rom_data_i   => (others => '0'),
          rom_data_o   => open,
@@ -531,7 +531,7 @@ begin
          BLKSZ => 1        -- 1 = 256 bytes block size
       )
       port map (
-         clk_qnice_i      => vic20_clk_sd_i,
+         clk_qnice_i      => iec_clk_sd_i,
          clk_core_i       => clk_main_i,
          reset_core_i     => not reset_core_n,
 
@@ -569,11 +569,11 @@ begin
 
          -- QNICE interface (MMIO, 4k-segmented)
          -- qnice_addr is 28-bit because we have a 16-bit window selector and a 4k window: 65536*4096 = 268.435.456 = 2^28
-         qnice_addr_i     => vic20_qnice_addr_i,
-         qnice_data_i     => vic20_qnice_data_i,
-         qnice_data_o     => vic20_qnice_data_o,
-         qnice_ce_i       => vic20_qnice_ce_i,
-         qnice_we_i       => vic20_qnice_we_i
+         qnice_addr_i     => iec_qnice_addr_i,
+         qnice_data_i     => iec_qnice_data_i,
+         qnice_data_o     => iec_qnice_data_o,
+         qnice_ce_i       => iec_qnice_ce_i,
+         qnice_we_i       => iec_qnice_we_i
       ); -- vdrives_inst
 
 end architecture synthesis;
