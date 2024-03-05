@@ -403,14 +403,14 @@ begin
          drive_led_o            => main_drive_led_o,
          drive_led_col_o        => main_drive_led_col_o,
 
-         -- ???
+         -- VIC 20 RAM
          conf_clk_i             => qnice_clk_i,
          conf_wr_i              => qnice_conf_wr,
          conf_ai_i              => qnice_conf_ai,
          conf_di_i              => qnice_conf_di,
 
-         -- VIC20 IEC handled by QNICE
-         iec_clk_sd_i           => qnice_clk_i,
+         -- IEC handled by QNICE
+         iec_clk_sd_i           => qnice_clk_i,   -- "sd card write clock" for floppy drive internal dual clock RAM buffer
          iec_qnice_addr_i       => qnice_dev_addr_i,
          iec_qnice_data_i       => qnice_dev_data_i,
          iec_qnice_data_o       => qnice_iec_qnice_data,
@@ -516,7 +516,7 @@ begin
             qnice_conf_wr <= qnice_dev_we_i;
             qnice_conf_di <= qnice_dev_data_i(7 downto 0);
 
-         -- VIC20 IEC drives
+         -- IEC drives
          when C_DEV_IEC_VDRIVES =>
             qnice_iec_qnice_ce <= qnice_dev_ce_i;
             qnice_iec_qnice_we <= qnice_dev_we_i;
@@ -542,7 +542,7 @@ begin
       generic map (
          ADDR_WIDTH   => 18,
          DATA_WIDTH   => 8,
-         MAXIMUM_SIZE => 197376,
+         MAXIMUM_SIZE => 197376,        -- maximum size of any D64 image: non-standard 40-track incl. 768 error bytes
          FALLING_A    => true
       )
       port map (
