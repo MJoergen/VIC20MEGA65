@@ -77,62 +77,114 @@ type WHS_RECORD_ARRAY_TYPE is array (0 to WHS_RECORDS - 1) of WHS_RECORD_TYPE;
 
 constant SCR_WELCOME : string :=
 
-   "\n" &
-   " VIC20 for MEGA65 Version 1.0\n" &
-   "\n" &
+   "\n VIC20 for MEGA65 Version 1.0\n\n" &
+
    " MiSTer port 2024 by MJoergen\n" &
-   "\n" &
-   " Powered by MiSTer2MEGA65\n" &
-   "\n" &
-   "\n" &
-   "\n" &
-   " Press Space to continue.\n" &
-   "\n" &
-   "\n";
+   " Powered by MiSTer2MEGA65\n\n\n" &
+
+   " While the VIC20 is running: Press HELP\n" &
+   " to mount drives & to configure the core.\n\n" &
+
+   " Both SD card slots work: The card in the\n" &
+   " back has higher precedence than the\n" &
+   " card at the bottom of the MEGA65.\n\n" &
+
+   " While you are in the file browser:\n" &
+   "   F1: Switch to internal SD card\n" &
+   "   F3: Switch to external SD card\n" &
+
+   "\n\n Press Space to continue.";
 
 constant HELP_1 : string :=
 
-   "\n" &
-   " VIC20 Core for MEGA65 Version 1.0\n" &
-   "\n" &
+   "\n VIC20 for MEGA65 Version 1.0\n" &
+
    " MiSTer port 2024 by MJoergen\n" &
-   " Powered by MiSTer2MEGA65\n" &
-   "\n" &
-   "\n" &
-   " Quickstart:\n" &
-   "\n" &
+   " Powered by MiSTer2MEGA65\n\n" &
+
+   " Quickstart:\n\n" &
+
    " * Create a /vic20 folder on your SD card\n" &
-   "\n" &
-   "\n" &
+   "   place your D64, CRT and PRG files there\n" &
+   " * You can work with long file names and\n" &
+   "   with arbitrary sub-folders\n" &
+   " * Both SD card slots are supported. Back\n" &
+   "   slot takes precedence over bottom slot\n" &
+   " * Copy the c64mega65 config file to your\n" &
+   "   /vic20 folder so that your menu settings\n" &
+   "   are being saved\n" &
+   " * If you use any analog display device\n" &
+   "   via the VGA port, disable HDMI:\n" &
+   "   Flicker-free to avoid glitches\n" &
+   " * If you use HDMI, then absolutely make\n" &
+   "   sure that you enable HDMI: Flicker-free\n" &
+   "   and that you run the core at 50 Hz\n" &
+   " * To use hardware cartridges, you need to\n" &
+   "   have a MEGA65 core #0 from at least mid\n" &
+   "   2023; so you might need to upgrade\n\n" &
+
    " Cursor right to learn more.       (1 of 3)\n" &
    " Press Space to close the help screen.";
 
 constant HELP_2 : string :=
 
-   "\n" &
-   " VIC20 Core for MEGA65 Version 1.0\n" &
-   "\n" &
-   " When browsing the menu:\n" &
-   "\n" &
+   "\n VIC20 for MEGA65 Version 1.0\n\n" &
+
+   " When browsing the menu:\n\n" &
+
    " Help:     Open/close menu\n" &
    " Run/Stop: Leave sub-menu\n" &
-   " Settings are saved when closing the menu\n" &
-   "\n" &
-   " System reset:\n" &
-   "\n" &
+   " Settings are saved when closing the menu\n\n" &
+
+   " When browsing for D64, CRT and PRG:\n\n" &
+
+   " Cursor up/down:     File up/down\n" &
+   " Cursor left/right:  Page up/down\n" &
+   " Run/Stop:           Cancel browsing\n" &
+   " F1:                 Bottom SD card\n" &
+   " F3:                 Back SD card\n" &
+   " Enter:              Mount drive\n" &
+   "                     Load CRT or PRG\n" &
+   " Space:              Unmount drive\n\n" &
+
+   " System reset:\n\n" &
+
    " Press the reset button shortly to just\n" &
-   " reset the C64 core and press the button\n" &
+   " reset the VIC20 core and press the button\n" &
    " longer than 1.5s to reset the MEGA65.\n" &
-   " A short reset also restarts cartridges.\n" &
-   "\n" &
+   " A short reset also restarts cartridges.\n\n" &
+
    " Crsr left: Prev  Crsr right: Next (2 of 3)\n" &
    " Press Space to close the help screen.";
 
 constant HELP_3 : string :=
 
-   "\n" &
-   " VIC20 Core for MEGA65 Version 1.0\n" &
-   "\n" &
+   "\n VIC20 for MEGA65 Version 1.0\n\n" &
+
+   " SID:\n\n" &
+
+   " * For older productions choose 6581 and\n" &
+   "   for newer productions choose 8580.\n" &
+   " * Stick to Mono SID unless you know what\n" &
+   "   you are doing.\n" &
+   " * ""Pseudo-stereo"" is an exception to\n" &
+   "   this. Enable it by choosing ""Same as\n" &
+   "   left SID port"" in the configuration for\n" &
+   "   the right SID port and by choosing\n" &
+   "   different SID models for the left and\n" &
+   "   right speaker.\n\n" &
+
+   " IEC:\n\n" &
+
+   " Never run an external device that has the\n" &
+   " drive id #8. Always use #9 or higher.\n\n" &
+
+   " Writing to disk images:\n\n" &
+
+   " Wait until the drive led is done turning\n" &
+   " from green to yellow back and forth and\n" &
+   " is off again before unmount, reset or OFF.\n\n" &
+
    " Cursor left to go back.           (3 of 3)\n" &
    " Press Space to close the help screen.";
 
@@ -305,7 +357,7 @@ constant OPTM_GTC          : natural := 17;                -- Amount of signific
 
 -- Strings with which %s will be replaced in case the menu item is of type OPTM_G_MOUNT_DRV
 constant OPTM_S_MOUNT      : string := "<Mount Drive>";     -- no disk image mounted, yet
-constant OPTM_S_CRTROM     : string := "<Load>";            -- no ROM loaded, yet
+constant OPTM_S_CRTROM     : string := "<Load>";            -- no ROM/CRT loaded, yet
 constant OPTM_S_SAVING     : string := "<Saving>";          -- the internal write cache is dirty and not yet written back to the SD card
 
 -- Size of menu and menu items
@@ -313,7 +365,7 @@ constant OPTM_S_SAVING     : string := "<Saving>";          -- the internal writ
 --             Do use a lower case \n. If you forget one of them or if you use upper case, you will run into undefined behavior.
 --          2. Start each line that contains an actual menu item (multi- or single-select) with a Space character,
 --             otherwise you will experience visual glitches.
-constant OPTM_SIZE         : natural := 34;  -- amount of items including empty lines:
+constant OPTM_SIZE         : natural := 73;  -- amount of items including empty lines:
                                              -- needs to be equal to the number of lines in OPTM_ITEMS and amount of items in OPTM_GROUPS
                                              -- IMPORTANT: If SAVE_SETTINGS is true and OPTM_SIZE changes: Make sure to re-generate and
                                              -- and re-distribute the config file. You can make a new one using M2M/tools/make_config.sh
@@ -327,24 +379,13 @@ constant OPTM_ITEMS        : string :=
 
    " VIC20 for MEGA65\n"       &
    "\n"                        &
-   " 8:%s\n"                   &
+   " 8:%s\n"                   &  -- %s will be replaced by OPTM_S_MOUNT when not mounted and by the filename when mounted
    " PRG:%s\n"                 &
    "\n"                        &
-
-   " HDMI: %s\n"               &    -- HDMI submenu
-   " HDMI Settings\n"          &
+   " Expansion Port\n"         &
    "\n"                        &
-   " 720p 50 Hz 16:9\n"        &
-   " 720p 60 Hz 16:9\n"        &
-   " 576p 50 Hz 4:3\n"         &
-   " 576p 50 Hz 5:4\n"         &
-   " 640x480 60 Hz\n"          &
-   " 720x480 59.94 Hz\n"       &
-   " 800x600 60 Hz\n"          &
-   "\n"                        &
-   " Back to main menu\n"      &
 
-   " RAM: %s\n"                &    -- RAM submenu
+   " RAM: %s\n"                &  -- RAM submenu
    " RAM expansions\n"         &
    "\n"                        &
    " $0400(3KB)\n"             &
@@ -355,70 +396,172 @@ constant OPTM_ITEMS        : string :=
    "\n"                        &
    " Back to main menu\n"      &
 
+   " Simulate cartridge:\n"    &
+   " CRT:%s\n"                 &  -- %s will be replaced by OPTM_S_CRTROM when no cartridge is loaded, otherwise by the filename of the cartridge
+
+   " VIC20 Configuration\n"    &
    "\n"                        &
+   " Flip joystick ports\n"    &
+   " Audio improvements\n"     &
    " IEC: Use hardware port\n" &
+
+   "\n"                        &
+   " Display Settings\n"       &
+   "\n"                        &
+
+   " HDMI: %s\n"               &  -- HDMI submenu
+   " HDMI Display Mode\n"      &
+   "\n"                        &
+   " 16:9 720p 50 Hz\n"        &
+   " 16:9 720p 60 Hz\n"        &
+   " 4:3  576p 50 Hz\n"        &
+   " 5:4  576p 50 Hz\n"        &
+   " 4:3  480p 60 Hz\n"        &
+   " 3:2  480p 59.94 Hz\n"     &
+   " 4:3  600p 60 Hz\n"        &
+   "\n"                        &
+   " HDMI: Flicker-free\n"     &
+   " HDMI: DVI (no sound)\n"   &
+   "\n"                        &
+   " Back to main menu\n"      &
+
    " HDMI: CRT emulation\n"    &
    " HDMI: Zoom-in\n"          &
-   " Audio improvements\n"     &
+
+   " VGA: %s\n"                &  -- VGA submenu
+   " VGA Display Mode\n"       &
+   "\n"                        &
+   " Standard\n"               &
+   "\n"                        &
+   " Retro 15 kHz mode\n"      &
+   "\n"                        &
+   " 15 kHz with HS/VS\n"      &
+   " 15 kHz with CSYNC\n"      &
+   "\n"                        &
+   " Back to main menu\n"      &
+
+   " OSM: %s\n"                &  -- OSM submenu
+   " OSM Scaling\n"            &
+   "\n"                        &
+   " 100%\n"                   &
+   " 89%\n"                    &
+   " 80%\n"                    &
+   " 73%\n"                    &
+   " 67%\n"                    &
+   " 62%\n"                    &
+   " 57%\n"                    &
+   " 53%\n"                    &
+   " 50%\n"                    &
+   "\n"                        &
+   " Back to main menu\n"      &
+
+   "\n"                        &
+   " About & Help\n"           &
    "\n"                        &
    " Close Menu\n";
 
-constant OPTM_G_MOUNT_8    : integer := 1;
-constant OPTM_G_HDMI       : integer := 2;
-constant OPTM_G_LOAD_PRG   : integer := 3;   -- used in CORE/m2m-rom/m2m.asm: change there, too, if you change it here
-constant OPTM_G_RAM        : integer := 4;
-constant OPTM_G_MOUNT_CRT  : integer := 5;   -- used in CORE/m2m-rom/m2m.asm: change there, too, if you change it here
-constant OPTM_G_CRT        : integer := 6;
-constant OPTM_G_ZOOM       : integer := 7;
-constant OPTM_G_AUDIO      : integer := 8;
-constant OPTM_G_IEC        : integer := 10;
+constant OPTM_G_MOUNT_8       : integer := 1;
+constant OPTM_G_LOAD_PRG      : integer := 3;   -- used in CORE/m2m-rom/m2m.asm: change there, too, if you change it here
+constant OPTM_G_EXP_PORT      : integer := 4;
+constant OPTM_G_MOUNT_CRT     : integer := 5;   -- used in CORE/m2m-rom/m2m.asm: change there, too, if you change it here
+constant OPTM_G_FLIP_JOYS     : integer := 6;
+constant OPTM_G_IMPROVE_AUDIO : integer := 9;
+constant OPTM_G_IEC           : integer := 11;
+constant OPTM_G_HDMI_MODES    : integer := 13;
+constant OPTM_G_HDMI_FF       : integer := 14;
+constant OPTM_G_HDMI_DVI      : integer := 15;
+constant OPTM_G_CRT_EMULATION : integer := 16;
+constant OPTM_G_HDMI_ZOOM     : integer := 17;
+constant OPTM_G_VGA_MODES     : integer := 18;
+constant OPTM_G_OSM_MODE      : integer := 19;
+constant OPTM_G_ABOUT_HELP    : integer := 20;
 
 -- !!! DO NOT TOUCH !!!
 type OPTM_GTYPE is array (0 to OPTM_SIZE - 1) of integer range 0 to 2**OPTM_GTC- 1;
 
--- define your menu groups: which menu items are belonging together to form a group?
--- where are separator lines? which items should be selected by default?
--- make sure that you have exactly the same amount of entries here than in OPTM_ITEMS and defined by OPTM_SIZE
-constant OPTM_GROUPS       : OPTM_GTYPE := ( OPTM_G_TEXT     + OPTM_G_HEADLINE,         -- Headline "VIC20 Headline A"
-                                             OPTM_G_LINE,                               -- Line
-                                             OPTM_G_MOUNT_8  + OPTM_G_MOUNT_DRV + OPTM_G_START,
-                                             OPTM_G_LOAD_PRG + OPTM_G_LOAD_ROM,
-                                             OPTM_G_LINE,                               -- Line
+constant OPTM_GROUPS : OPTM_GTYPE := (
+   OPTM_G_HEADLINE,                                         -- VIC20 for MEGA65
+   OPTM_G_LINE,                                             --
+   OPTM_G_MOUNT_8       + OPTM_G_MOUNT_DRV + OPTM_G_START,  -- 8:%s
+   OPTM_G_LOAD_PRG      + OPTM_G_LOAD_ROM,                  -- PRG:%s
+   OPTM_G_LINE,                                             --
+   OPTM_G_HEADLINE,                                         -- Expansion Port
+   OPTM_G_LINE,                                             --
 
-                                             OPTM_G_SUBMENU,                            -- HDMI submenu block: START: "HDMI: %s"
-                                             OPTM_G_TEXT     + OPTM_G_HEADLINE,         -- Headline "HDMI Settings"
-                                             OPTM_G_LINE,                               -- Line
-                                             OPTM_G_HDMI     + OPTM_G_STDSEL,           -- 720p 50 Hz 16:9, selected by default
-                                             OPTM_G_HDMI,                               -- 720p 60 Hz 16:9
-                                             OPTM_G_HDMI,                               -- 576p 50 Hz 4:3
-                                             OPTM_G_HDMI,                               -- 576p 50 Hz 5:4
-                                             OPTM_G_HDMI,                               -- 640x480 60 Hz
-                                             OPTM_G_HDMI,                               -- 720x480 59.94 Hz
-                                             OPTM_G_HDMI,                               -- 600p 60 Hz
-                                             OPTM_G_LINE,                               -- open
-                                             OPTM_G_CLOSE    + OPTM_G_SUBMENU,          -- Close submenu / back to main menu
-                                                                                        -- HDMI submenu block: END
+   OPTM_G_SUBMENU,                                          -- RAM: %s
+   OPTM_G_TEXT          + OPTM_G_HEADLINE,                  -- RAM expansions
+   OPTM_G_LINE,                                             --
+   OPTM_G_EXP_PORT      + OPTM_G_SINGLESEL,                 -- $0400 (3KB)
+   OPTM_G_EXP_PORT      + OPTM_G_SINGLESEL,                 -- $2000 (8KB)
+   OPTM_G_EXP_PORT      + OPTM_G_SINGLESEL,                 -- $4000 (8KB)
+   OPTM_G_EXP_PORT      + OPTM_G_SINGLESEL,                 -- $6000 (8KB)
+   OPTM_G_EXP_PORT      + OPTM_G_SINGLESEL,                 -- $A000 (8KB)
+   OPTM_G_LINE,                                             --
+   OPTM_G_CLOSE         + OPTM_G_SUBMENU,                   -- Back to main menu
 
-                                             OPTM_G_SUBMENU,                            -- RAM submenu block: START: "RAM: %s"
-                                             OPTM_G_TEXT     + OPTM_G_HEADLINE,         -- Headline "RAM expansions"
-                                             OPTM_G_LINE,                               -- Line
-                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $0400 (3KB)
-                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $2000 (8KB)
-                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $4000 (8KB)
-                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $6000 (8KB)
-                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $A000 (8KB)
-                                             OPTM_G_LINE,                               -- open
-                                             OPTM_G_CLOSE    + OPTM_G_SUBMENU,          -- Close submenu / back to main menu
-                                                                                        -- RAM submenu block: END
+   OPTM_G_HEADLINE,                                         -- Simulate cartridge
+   OPTM_G_MOUNT_CRT     + OPTM_G_LOAD_ROM,                  -- CRT:%s
+   OPTM_G_HEADLINE,                                         -- VIC20 Configuration
+   OPTM_G_LINE,
+   OPTM_G_FLIP_JOYS     + OPTM_G_SINGLESEL,                 -- Flip joystick ports
+   OPTM_G_IMPROVE_AUDIO + OPTM_G_SINGLESEL + OPTM_G_STDSEL, -- Audio improvements
+   OPTM_G_IEC           + OPTM_G_SINGLESEL,                 -- IEC: Use hardware port
 
-                                             OPTM_G_LINE,                               -- Line
-                                             OPTM_G_IEC      + OPTM_G_SINGLESEL,        -- IEC: Use hardware port
-                                             OPTM_G_CRT      + OPTM_G_SINGLESEL,        -- HDMI: CRT emulation
-                                             OPTM_G_ZOOM     + OPTM_G_SINGLESEL,        -- HDMI: Zoom-in
-                                             OPTM_G_AUDIO    + OPTM_G_SINGLESEL,        -- Audio improvements
-                                             OPTM_G_LINE,                               -- Line
-                                             OPTM_G_CLOSE                               -- Close Menu
-                                           );
+   OPTM_G_LINE,                                             --
+   OPTM_G_HEADLINE,                                         -- Display settings
+   OPTM_G_LINE,                                             --
+
+   OPTM_G_SUBMENU,                                          -- HDMI: %s
+   OPTM_G_HEADLINE,                                         -- HDMI Display Mode
+   OPTM_G_LINE,                                             --
+   OPTM_G_HDMI_MODES    + OPTM_G_STDSEL,                    -- 16:9 720p 50 Hz
+   OPTM_G_HDMI_MODES,                                       -- 16:9 720p 60 Hz
+   OPTM_G_HDMI_MODES,                                       -- 4:3  576p 50 Hz
+   OPTM_G_HDMI_MODES,                                       -- 5:4  576p 50 Hz
+   OPTM_G_HDMI_MODES,                                       -- 4:3  480p 60 Hz
+   OPTM_G_HDMI_MODES,                                       -- 3:2  480p 59.94 Hz
+   OPTM_G_HDMI_MODES,                                       -- 4:3  600p 60 Hz
+   OPTM_G_LINE,                                             -- open
+   OPTM_G_HDMI_FF       + OPTM_G_SINGLESEL + OPTM_G_STDSEL, -- HDMI: Flicker-free
+   OPTM_G_HDMI_DVI      + OPTM_G_SINGLESEL,                 -- HDMI: DVI (no sound)
+   OPTM_G_LINE,                                             --
+   OPTM_G_CLOSE         + OPTM_G_SUBMENU,                   -- Back to main menu
+
+   OPTM_G_CRT_EMULATION + OPTM_G_SINGLESEL,                 -- HDMI: CRT emulation
+   OPTM_G_HDMI_ZOOM     + OPTM_G_SINGLESEL,                 -- HDMI: Zoom-in
+
+   OPTM_G_SUBMENU,                                          -- VGA: %s
+   OPTM_G_HEADLINE,                                         -- VGA Display Mode
+   OPTM_G_LINE,                                             --
+   OPTM_G_VGA_MODES     + OPTM_G_STDSEL,                    -- Standard
+   OPTM_G_LINE,                                             --
+   OPTM_G_TEXT,                                             -- Retro 15 kHz mode
+   OPTM_G_LINE,                                             --
+   OPTM_G_VGA_MODES,                                        -- 15 kHz with HS/VS
+   OPTM_G_VGA_MODES,                                        -- 15 kHz with CSYNC
+   OPTM_G_LINE,                                             --
+   OPTM_G_CLOSE         + OPTM_G_SUBMENU,                   -- Back to main menu
+
+   OPTM_G_SUBMENU,                                          -- OSM: %s
+   OPTM_G_HEADLINE,                                         -- OSM Scaling
+   OPTM_G_LINE,                                             --
+   OPTM_G_OSM_MODE      + OPTM_G_STDSEL,                    -- 100%
+   OPTM_G_OSM_MODE,                                         -- 89%
+   OPTM_G_OSM_MODE,                                         -- 80%
+   OPTM_G_OSM_MODE,                                         -- 73%
+   OPTM_G_OSM_MODE,                                         -- 67%
+   OPTM_G_OSM_MODE,                                         -- 62%
+   OPTM_G_OSM_MODE,                                         -- 57%
+   OPTM_G_OSM_MODE,                                         -- 53%
+   OPTM_G_OSM_MODE,                                         -- 50%
+   OPTM_G_LINE,                                             --
+   OPTM_G_CLOSE         + OPTM_G_SUBMENU,                   -- Back to main menu
+
+   OPTM_G_LINE,                                             --
+   OPTM_G_ABOUT_HELP    + OPTM_G_HELP,                      -- About & Help
+   OPTM_G_LINE,                                             --
+   OPTM_G_CLOSE                                             -- Close Menu
+); -- OPTM_GROUPS
 
 --------------------------------------------------------------------------------------------------------------------
 -- !!! CAUTION: M2M FRAMEWORK CODE !!! DO NOT TOUCH ANYTHING BELOW THIS LINE !!!

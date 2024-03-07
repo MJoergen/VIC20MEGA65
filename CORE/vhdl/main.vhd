@@ -30,7 +30,7 @@ entity main is
       pause_i                : in    std_logic;
 
       -- Trigger the sequence RUN<Return> to autostart PRG files
-      trigger_run_i          : in  std_logic;
+      trigger_run_i          : in    std_logic;
 
       ---------------------------
       -- Configuration options
@@ -43,6 +43,7 @@ entity main is
       -- MiSTer core main clock speed:
       -- Make sure you pass very exact numbers here, because they are used for avoiding clock drift at derived clocks
       clk_main_speed_i       : in    natural;
+      video_retro15khz_i     : in    std_logic;
 
       ---------------------------
       -- VIC 20 I/O ports
@@ -258,8 +259,8 @@ begin
          i_reset       => reset_soft_i or reset_hard_i,
          i_restore_n   => restore_key_n,
          o_p2h         => open,
-         i_ram_ext_ro  => "00000", -- read-only region if set
-         i_ram_ext     => ram_ext_i, -- -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
+         i_ram_ext_ro  => "00000",   -- read-only region if set
+         i_ram_ext     => ram_ext_i, -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
          i_extmem_en   => '0',
          o_extmem_sel  => open,
          o_extmem_r_wn => open,
@@ -327,13 +328,15 @@ begin
    video_ce_proc : process (clk_video_i)
    begin
       if rising_edge(clk_video_i) then
-         video_ce_d     <= video_ce;
-         video_ce_o     <= video_ce and not video_ce_d;
+         video_ce_d <= video_ce;
+         video_ce_o <= video_ce and not video_ce_d;
 
-         div_ovl        <= div_ovl + 1;
-         video_ce_ovl_o <= and(div_ovl);
+         div_ovl    <= div_ovl + 1;
       end if;
    end process video_ce_proc;
+
+   video_ce_ovl_o  <= '1' when video_retro15khz_i = '0' else
+                      not div_ovl(0);
 
    --------------------------------------------------------------------------------------------------
    -- Keyboard- and joystick controller

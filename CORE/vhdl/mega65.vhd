@@ -243,22 +243,29 @@ architecture synthesis of mega65_core is
    ---------------------------------------------------------------------------------------------
 
    -- OSM selections within qnice_osm_control_i
-   constant C_MENU_HDMI_16_9_50  : natural := 8;
-   constant C_MENU_HDMI_16_9_60  : natural := 9;
-   constant C_MENU_HDMI_4_3_50   : natural := 10;
-   constant C_MENU_HDMI_5_4_50   : natural := 11;
-   constant C_MENU_HDMI_640_60   : natural := 12;
-   constant C_MENU_HDMI_720_5994 : natural := 13;
-   constant C_MENU_SVGA_800_60   : natural := 14;
-   constant C_MENU_RAM_0400      : natural := 20;
-   constant C_MENU_RAM_2000      : natural := 21;
-   constant C_MENU_RAM_4000      : natural := 22;
-   constant C_MENU_RAM_6000      : natural := 23;
-   constant C_MENU_RAM_A000      : natural := 24;
-   constant C_MENU_IEC           : natural := 28;
-   constant C_MENU_CRT_EMULATION : natural := 29;
-   constant C_MENU_HDMI_ZOOM     : natural := 30;
-   constant C_MENU_IMPROVE_AUDIO : natural := 31;
+   constant C_MENU_RAM_0400      : natural := 10;
+   constant C_MENU_RAM_2000      : natural := 11;
+   constant C_MENU_RAM_4000      : natural := 12;
+   constant C_MENU_RAM_6000      : natural := 13;
+   constant C_MENU_RAM_A000      : natural := 14;
+   constant C_MENU_FLIP_JOYS     : natural := 21;
+   constant C_MENU_IMPROVE_AUDIO : natural := 22;
+   constant C_MENU_IEC           : natural := 23;
+   constant C_MENU_HDMI_16_9_50  : natural := 30;
+   constant C_MENU_HDMI_16_9_60  : natural := 31;
+   constant C_MENU_HDMI_4_3_50   : natural := 32;
+   constant C_MENU_HDMI_5_4_50   : natural := 33;
+   constant C_MENU_HDMI_640_60   : natural := 34;
+   constant C_MENU_HDMI_720_5994 : natural := 35;
+   constant C_MENU_HDMI_800_60   : natural := 36;
+   constant C_MENU_HDMI_FF       : natural := 38;
+   constant C_MENU_HDMI_DVI      : natural := 39;
+   constant C_MENU_CRT_EMULATION : natural := 42;
+   constant C_MENU_HDMI_ZOOM     : natural := 43;
+   constant C_MENU_VGA_STD       : natural := 47;
+   constant C_MENU_VGA_15KHZHSVS : natural := 51;
+   constant C_MENU_VGA_15KHZCS   : natural := 52;
+   subtype  c_menu_osm_scaling is natural range 66 downto 58;
 
    signal   qnice_conf_wr : std_logic;
    signal   qnice_conf_ai : std_logic_vector(15 downto 0);
@@ -374,8 +381,12 @@ begin
       port map (
          clk_main_i             => main_clk,
          clk_video_i            => video_clk,
+
+         -- see RESET SEMANTICS in main.vhd
+         -- reset_soft_i minimum pulse length is 32 clock cycles
          reset_soft_i           => main_reset_core_i,
          reset_hard_i           => main_reset_m2m_i or main_reset_from_prgloader,
+
          pause_i                => main_pause_core_i,
          trigger_run_i          => main_prg_trigger_run,
 
@@ -391,6 +402,7 @@ begin
                                    main_osm_control_i(C_MENU_RAM_0400),
 
          clk_main_speed_i       => CORE_CLK_SPEED,
+         video_retro15khz_i     => main_osm_control_i(C_MENU_VGA_15KHZHSVS) or main_osm_control_i(C_MENU_VGA_15KHZCS),
 
          ---------------------------
          -- VIC 20 I/O ports
@@ -474,7 +486,7 @@ begin
    -- while in the 4:3 mode we are outputting a 5:4 image. This is kind of odd, but it seemed that our 4/3 aspect ratio
    -- adjusted image looks best on a 5:4 monitor and the other way round.
    -- Not sure if this will stay forever or if we will come up with a better naming convention.
-   qnice_video_mode_o        <= C_VIDEO_SVGA_800_60 when qnice_osm_control_i(C_MENU_SVGA_800_60)    = '1' else
+   qnice_video_mode_o        <= C_VIDEO_SVGA_800_60 when qnice_osm_control_i(C_MENU_HDMI_800_60)    = '1' else
                                 C_VIDEO_HDMI_720_5994 when qnice_osm_control_i(C_MENU_HDMI_720_5994)  = '1' else
                                 C_VIDEO_HDMI_640_60 when qnice_osm_control_i(C_MENU_HDMI_640_60)    = '1' else
                                 C_VIDEO_HDMI_5_4_50 when qnice_osm_control_i(C_MENU_HDMI_5_4_50)    = '1' else
@@ -484,21 +496,18 @@ begin
 
    -- Use On-Screen-Menu selections to configure several audio and video settings
    -- Video and audio mode control
-   qnice_dvi_o               <= '0';                                       -- 0=HDMI (with sound), 1=DVI (no sound)
-   qnice_scandoubler_o       <= '1';                                       -- no scandoubler
+   qnice_dvi_o               <= qnice_osm_control_i(C_MENU_HDMI_DVI); -- 0=HDMI (with sound), 1=DVI (no sound)
+
+   -- no scandoubler when using the retro 15 kHz RGB mode
+   qnice_scandoubler_o       <= (not qnice_osm_control_i(C_MENU_VGA_15KHZHSVS)) and
+                                (not qnice_osm_control_i(C_MENU_VGA_15KHZCS));
+
    qnice_audio_mute_o        <= '0';                                       -- audio is not muted
    qnice_audio_filter_o      <= qnice_osm_control_i(C_MENU_IMPROVE_AUDIO); -- 0 = raw audio, 1 = use filters from globals.vhd
    qnice_zoom_crop_o         <= qnice_osm_control_i(C_MENU_HDMI_ZOOM);     -- 0 = no zoom/crop
-
-   -- These two signals are often used as a pair (i.e. both '1'), particularly when
-   -- you want to run old analog cathode ray tube monitors or TVs (via SCART)
-   -- If you want to provide your users a choice, then a good choice is:
-   --    "Standard VGA":                     qnice_retro15kHz_o=0 and qnice_csync_o=0
-   --    "Retro 15 kHz with HSync and VSync" qnice_retro15kHz_o=1 and qnice_csync_o=0
-   --    "Retro 15 kHz with CSync"           qnice_retro15kHz_o=1 and qnice_csync_o=1
-   qnice_retro15khz_o        <= '0';
-   qnice_csync_o             <= '0';
-   qnice_osm_cfg_scaling_o   <= (others => '1');
+   qnice_retro15khz_o        <= qnice_osm_control_i(C_MENU_VGA_15KHZHSVS) or qnice_osm_control_i(C_MENU_VGA_15KHZCS);
+   qnice_csync_o             <= qnice_osm_control_i(C_MENU_VGA_15KHZCS);   -- Composite sync (CSYNC)
+   qnice_osm_cfg_scaling_o   <= qnice_osm_control_i(C_MENU_OSM_SCALING);
 
    -- ascal filters that are applied while processing the input
    -- 00 : Nearest Neighbour
@@ -516,7 +525,7 @@ begin
    qnice_ascal_triplebuf_o   <= '0';
 
    -- Flip joystick ports (i.e. the joystick in port 2 is used as joystick 1 and vice versa)
-   qnice_flip_joyports_o     <= '0';
+   qnice_flip_joyports_o     <= qnice_osm_control_i(C_MENU_FLIP_JOYS);
 
    ---------------------------------------------------------------------------------------------
    -- Core specific device handling (QNICE clock domain, device IDs in globals.vhd)
