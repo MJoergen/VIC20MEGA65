@@ -29,6 +29,9 @@ entity main is
       -- Pull high to pause the core
       pause_i                : in    std_logic;
 
+      -- Trigger the sequence RUN<Return> to autostart PRG files
+      trigger_run_i          : in  std_logic;
+
       ---------------------------
       -- Configuration options
       ---------------------------
@@ -344,7 +347,7 @@ begin
          reset_i         => not reset_core_n,
 
          -- Trigger the sequence RUN<Return> to autostart PRG files
-         trigger_run_i   => '0',
+         trigger_run_i   => trigger_run_i,
 
          -- Interface to the MEGA65 keyboard
          key_num_i       => kb_key_num_i,

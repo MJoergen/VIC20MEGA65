@@ -313,7 +313,7 @@ constant OPTM_S_SAVING     : string := "<Saving>";          -- the internal writ
 --             Do use a lower case \n. If you forget one of them or if you use upper case, you will run into undefined behavior.
 --          2. Start each line that contains an actual menu item (multi- or single-select) with a Space character,
 --             otherwise you will experience visual glitches.
-constant OPTM_SIZE         : natural := 33;  -- amount of items including empty lines:
+constant OPTM_SIZE         : natural := 34;  -- amount of items including empty lines:
                                              -- needs to be equal to the number of lines in OPTM_ITEMS and amount of items in OPTM_GROUPS
                                              -- IMPORTANT: If SAVE_SETTINGS is true and OPTM_SIZE changes: Make sure to re-generate and
                                              -- and re-distribute the config file. You can make a new one using M2M/tools/make_config.sh
@@ -328,6 +328,7 @@ constant OPTM_ITEMS        : string :=
    " VIC20 for MEGA65\n"       &
    "\n"                        &
    " 8:%s\n"                   &
+   " PRG:%s\n"                 &
    "\n"                        &
 
    " HDMI: %s\n"               &    -- HDMI submenu
@@ -364,7 +365,9 @@ constant OPTM_ITEMS        : string :=
 
 constant OPTM_G_MOUNT_8    : integer := 1;
 constant OPTM_G_HDMI       : integer := 2;
-constant OPTM_G_RAM        : integer := 3;
+constant OPTM_G_LOAD_PRG   : integer := 3;   -- used in CORE/m2m-rom/m2m.asm: change there, too, if you change it here
+constant OPTM_G_RAM        : integer := 4;
+constant OPTM_G_MOUNT_CRT  : integer := 5;   -- used in CORE/m2m-rom/m2m.asm: change there, too, if you change it here
 constant OPTM_G_CRT        : integer := 6;
 constant OPTM_G_ZOOM       : integer := 7;
 constant OPTM_G_AUDIO      : integer := 8;
@@ -376,44 +379,45 @@ type OPTM_GTYPE is array (0 to OPTM_SIZE - 1) of integer range 0 to 2**OPTM_GTC-
 -- define your menu groups: which menu items are belonging together to form a group?
 -- where are separator lines? which items should be selected by default?
 -- make sure that you have exactly the same amount of entries here than in OPTM_ITEMS and defined by OPTM_SIZE
-constant OPTM_GROUPS       : OPTM_GTYPE := ( OPTM_G_TEXT    + OPTM_G_HEADLINE,         -- Headline "VIC20 Headline A"
-                                             OPTM_G_LINE,                              -- Line
-                                             OPTM_G_MOUNT_8 + OPTM_G_MOUNT_DRV + OPTM_G_START,
-                                             OPTM_G_LINE,                              -- Line
+constant OPTM_GROUPS       : OPTM_GTYPE := ( OPTM_G_TEXT     + OPTM_G_HEADLINE,         -- Headline "VIC20 Headline A"
+                                             OPTM_G_LINE,                               -- Line
+                                             OPTM_G_MOUNT_8  + OPTM_G_MOUNT_DRV + OPTM_G_START,
+                                             OPTM_G_LOAD_PRG + OPTM_G_LOAD_ROM,
+                                             OPTM_G_LINE,                               -- Line
 
-                                             OPTM_G_SUBMENU,                           -- HDMI submenu block: START: "HDMI: %s"
-                                             OPTM_G_TEXT    + OPTM_G_HEADLINE,         -- Headline "HDMI Settings"
-                                             OPTM_G_LINE,                              -- Line
-                                             OPTM_G_HDMI    + OPTM_G_STDSEL,           -- 720p 50 Hz 16:9, selected by default
-                                             OPTM_G_HDMI,                              -- 720p 60 Hz 16:9
-                                             OPTM_G_HDMI,                              -- 576p 50 Hz 4:3
-                                             OPTM_G_HDMI,                              -- 576p 50 Hz 5:4
-                                             OPTM_G_HDMI,                              -- 640x480 60 Hz
-                                             OPTM_G_HDMI,                              -- 720x480 59.94 Hz
-                                             OPTM_G_HDMI,                              -- 600p 60 Hz
-                                             OPTM_G_LINE,                              -- open
-                                             OPTM_G_CLOSE   + OPTM_G_SUBMENU,          -- Close submenu / back to main menu
-                                                                                       -- HDMI submenu block: END
+                                             OPTM_G_SUBMENU,                            -- HDMI submenu block: START: "HDMI: %s"
+                                             OPTM_G_TEXT     + OPTM_G_HEADLINE,         -- Headline "HDMI Settings"
+                                             OPTM_G_LINE,                               -- Line
+                                             OPTM_G_HDMI     + OPTM_G_STDSEL,           -- 720p 50 Hz 16:9, selected by default
+                                             OPTM_G_HDMI,                               -- 720p 60 Hz 16:9
+                                             OPTM_G_HDMI,                               -- 576p 50 Hz 4:3
+                                             OPTM_G_HDMI,                               -- 576p 50 Hz 5:4
+                                             OPTM_G_HDMI,                               -- 640x480 60 Hz
+                                             OPTM_G_HDMI,                               -- 720x480 59.94 Hz
+                                             OPTM_G_HDMI,                               -- 600p 60 Hz
+                                             OPTM_G_LINE,                               -- open
+                                             OPTM_G_CLOSE    + OPTM_G_SUBMENU,          -- Close submenu / back to main menu
+                                                                                        -- HDMI submenu block: END
 
-                                             OPTM_G_SUBMENU,                           -- RAM submenu block: START: "RAM: %s"
-                                             OPTM_G_TEXT    + OPTM_G_HEADLINE,         -- Headline "RAM expansions"
-                                             OPTM_G_LINE,                              -- Line
-                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $0400 (3KB)
-                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $2000 (8KB)
-                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $4000 (8KB)
-                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $6000 (8KB)
-                                             OPTM_G_RAM     + OPTM_G_SINGLESEL,        -- $A000 (8KB)
-                                             OPTM_G_LINE,                              -- open
-                                             OPTM_G_CLOSE   + OPTM_G_SUBMENU,          -- Close submenu / back to main menu
-                                                                                       -- RAM submenu block: END
+                                             OPTM_G_SUBMENU,                            -- RAM submenu block: START: "RAM: %s"
+                                             OPTM_G_TEXT     + OPTM_G_HEADLINE,         -- Headline "RAM expansions"
+                                             OPTM_G_LINE,                               -- Line
+                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $0400 (3KB)
+                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $2000 (8KB)
+                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $4000 (8KB)
+                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $6000 (8KB)
+                                             OPTM_G_RAM      + OPTM_G_SINGLESEL,        -- $A000 (8KB)
+                                             OPTM_G_LINE,                               -- open
+                                             OPTM_G_CLOSE    + OPTM_G_SUBMENU,          -- Close submenu / back to main menu
+                                                                                        -- RAM submenu block: END
 
-                                             OPTM_G_LINE,                              -- Line
-                                             OPTM_G_IEC     + OPTM_G_SINGLESEL,        -- IEC: Use hardware port
-                                             OPTM_G_CRT     + OPTM_G_SINGLESEL,        -- HDMI: CRT emulation
-                                             OPTM_G_ZOOM    + OPTM_G_SINGLESEL,        -- HDMI: Zoom-in
-                                             OPTM_G_AUDIO   + OPTM_G_SINGLESEL,        -- Audio improvements
-                                             OPTM_G_LINE,                              -- Line
-                                             OPTM_G_CLOSE                              -- Close Menu
+                                             OPTM_G_LINE,                               -- Line
+                                             OPTM_G_IEC      + OPTM_G_SINGLESEL,        -- IEC: Use hardware port
+                                             OPTM_G_CRT      + OPTM_G_SINGLESEL,        -- HDMI: CRT emulation
+                                             OPTM_G_ZOOM     + OPTM_G_SINGLESEL,        -- HDMI: Zoom-in
+                                             OPTM_G_AUDIO    + OPTM_G_SINGLESEL,        -- Audio improvements
+                                             OPTM_G_LINE,                               -- Line
+                                             OPTM_G_CLOSE                               -- Close Menu
                                            );
 
 --------------------------------------------------------------------------------------------------------------------

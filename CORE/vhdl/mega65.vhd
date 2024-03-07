@@ -235,27 +235,30 @@ architecture synthesis of mega65_core is
    -- main_clk (MiSTer core's clock)
    ---------------------------------------------------------------------------------------------
 
+   signal   main_reset_from_prgloader : std_logic;
+   signal   main_prg_trigger_run      : std_logic;
+
    ---------------------------------------------------------------------------------------------
    -- qnice_clk
    ---------------------------------------------------------------------------------------------
 
    -- OSM selections within qnice_osm_control_i
-   constant C_MENU_HDMI_16_9_50  : natural := 7;
-   constant C_MENU_HDMI_16_9_60  : natural := 8;
-   constant C_MENU_HDMI_4_3_50   : natural := 9;
-   constant C_MENU_HDMI_5_4_50   : natural := 10;
-   constant C_MENU_HDMI_640_60   : natural := 11;
-   constant C_MENU_HDMI_720_5994 : natural := 12;
-   constant C_MENU_SVGA_800_60   : natural := 13;
-   constant C_MENU_RAM_0400      : natural := 19;
-   constant C_MENU_RAM_2000      : natural := 20;
-   constant C_MENU_RAM_4000      : natural := 21;
-   constant C_MENU_RAM_6000      : natural := 22;
-   constant C_MENU_RAM_A000      : natural := 23;
-   constant C_MENU_IEC           : natural := 27;
-   constant C_MENU_CRT_EMULATION : natural := 28;
-   constant C_MENU_HDMI_ZOOM     : natural := 29;
-   constant C_MENU_IMPROVE_AUDIO : natural := 30;
+   constant C_MENU_HDMI_16_9_50  : natural := 8;
+   constant C_MENU_HDMI_16_9_60  : natural := 9;
+   constant C_MENU_HDMI_4_3_50   : natural := 10;
+   constant C_MENU_HDMI_5_4_50   : natural := 11;
+   constant C_MENU_HDMI_640_60   : natural := 12;
+   constant C_MENU_HDMI_720_5994 : natural := 13;
+   constant C_MENU_SVGA_800_60   : natural := 14;
+   constant C_MENU_RAM_0400      : natural := 20;
+   constant C_MENU_RAM_2000      : natural := 21;
+   constant C_MENU_RAM_4000      : natural := 22;
+   constant C_MENU_RAM_6000      : natural := 23;
+   constant C_MENU_RAM_A000      : natural := 24;
+   constant C_MENU_IEC           : natural := 28;
+   constant C_MENU_CRT_EMULATION : natural := 29;
+   constant C_MENU_HDMI_ZOOM     : natural := 30;
+   constant C_MENU_IMPROVE_AUDIO : natural := 31;
 
    signal   qnice_conf_wr : std_logic;
    signal   qnice_conf_ai : std_logic_vector(15 downto 0);
@@ -268,6 +271,18 @@ architecture synthesis of mega65_core is
 
    signal   qnice_iec_mount_buf_ram_we   : std_logic;
    signal   qnice_iec_mount_buf_ram_data : std_logic_vector(7 downto 0); -- Disk mount buffer
+
+   -- QNICE signals for the PRG loader
+   signal   qnice_prg_qnice_ce         : std_logic;
+   signal   qnice_prg_qnice_we         : std_logic;
+   signal   qnice_prg_qnice_data       : std_logic_vector(15 downto 0);
+   signal   qnice_prg_wait             : std_logic;
+   signal   qnice_prg_ram_we           : std_logic;
+   signal   qnice_prg_ram_addr         : std_logic_vector(15 downto 0);
+   signal   qnice_prg_ram_d_to         : std_logic_vector(7 downto 0);
+   signal   qnice_reset_for_prgloader  : std_logic;
+   signal   qnice_reset_from_prgloader : std_logic;
+   signal   qnice_prg_trigger_run      : std_logic;
 
 begin
 
@@ -360,8 +375,9 @@ begin
          clk_main_i             => main_clk,
          clk_video_i            => video_clk,
          reset_soft_i           => main_reset_core_i,
-         reset_hard_i           => main_reset_m2m_i,
+         reset_hard_i           => main_reset_m2m_i or main_reset_from_prgloader,
          pause_i                => main_pause_core_i,
+         trigger_run_i          => main_prg_trigger_run,
 
          ---------------------------
          -- Configuration options
@@ -517,6 +533,8 @@ begin
       qnice_iec_qnice_ce         <= '0';
       qnice_iec_qnice_we         <= '0';
       qnice_iec_mount_buf_ram_we <= '0';
+      qnice_prg_qnice_ce         <= '0';
+      qnice_prg_qnice_we         <= '0';
 
       case qnice_dev_id_i is
 
@@ -536,6 +554,16 @@ begin
          when C_DEV_IEC_MOUNT =>
             qnice_iec_mount_buf_ram_we <= qnice_dev_we_i;
             qnice_dev_data_o           <= x"00" & qnice_iec_mount_buf_ram_data;
+
+         -- PRG file loader (*.PRG)
+         when C_DEV_PRG =>
+            qnice_conf_ai      <= qnice_prg_ram_addr;
+            qnice_conf_wr      <= qnice_prg_ram_we;
+            qnice_conf_di      <= qnice_prg_ram_d_to;
+            qnice_prg_qnice_ce <= qnice_dev_ce_i;
+            qnice_prg_qnice_we <= qnice_dev_we_i;
+            qnice_dev_data_o   <= qnice_prg_qnice_data;
+            qnice_dev_wait_o   <= qnice_prg_wait;
 
          when others =>
             null;
@@ -563,6 +591,58 @@ begin
          wren_a    => qnice_iec_mount_buf_ram_we,
          q_a       => qnice_iec_mount_buf_ram_data
       ); -- mount_buf_ram_inst
+
+   -- PRG file loader
+   prg_loader_inst : entity work.prg_loader
+      port map (
+         qnice_clk_i       => qnice_clk_i,
+         qnice_rst_i       => qnice_rst_i or qnice_reset_for_prgloader,
+         qnice_addr_i      => qnice_dev_addr_i,
+         qnice_data_i      => qnice_dev_data_i,
+         qnice_ce_i        => qnice_prg_qnice_ce,
+         qnice_we_i        => qnice_prg_qnice_we,
+         qnice_data_o      => qnice_prg_qnice_data,
+         qnice_wait_o      => qnice_prg_wait,
+
+         ram_we_o          => qnice_prg_ram_we,
+         ram_addr_o        => qnice_prg_ram_addr,
+         ram_data_i        => (others => '0'),
+         ram_data_o        => qnice_prg_ram_d_to,
+
+         core_reset_o      => qnice_reset_from_prgloader,
+         core_triggerrun_o => qnice_prg_trigger_run
+      ); -- prg_loader_inst
+
+   ---------------------------------------------------------------------------------------------
+   -- Dual Clocks
+   ---------------------------------------------------------------------------------------------
+
+   -- Clock Domain Crossing: CORE -> QNICE
+   cdc_main2qnice_inst : component xpm_cdc_array_single
+      generic map (
+         WIDTH => 1
+      )
+      port map (
+         src_clk     => main_clk_o,
+         src_in(0)   => main_reset_core_i,
+         dest_clk    => qnice_clk_i,
+         dest_out(0) => qnice_reset_for_prgloader
+      ); -- cdc_main2qnice_inst
+
+
+   -- Clock Domain Crossing: QNICE -> CORE
+   cdc_qnice2main_inst : component xpm_cdc_array_single
+      generic map (
+         WIDTH => 2
+      )
+      port map (
+         src_clk     => qnice_clk_i,
+         src_in(0)   => qnice_reset_from_prgloader,
+         src_in(1)   => qnice_prg_trigger_run,
+         dest_clk    => main_clk_o,
+         dest_out(0) => main_reset_from_prgloader,
+         dest_out(1) => main_prg_trigger_run
+      ); -- cdc_qnice2main_inst
 
 end architecture synthesis;
 

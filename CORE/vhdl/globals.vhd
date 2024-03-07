@@ -78,6 +78,8 @@ constant VRAM_ADDR_WIDTH      : natural := f_log2(CHAR_MEM_SIZE);
 constant C_DEV_VIC20_RAM      : std_logic_vector(15 downto 0) := x"0100";     -- VIC20's main RAM
 constant C_DEV_IEC_VDRIVES    : std_logic_vector(15 downto 0) := x"0101";     -- Virtual Device Management System
 constant C_DEV_IEC_MOUNT      : std_logic_vector(15 downto 0) := x"0102";     -- RAM to buffer disk images
+constant C_DEV_CRT            : std_logic_vector(15 downto 0) := x"0103";     -- SW cartridges (*.CRT)
+constant C_DEV_PRG            : std_logic_vector(15 downto 0) := x"0104";     -- PRG loader
 
 
 ----------------------------------------------------------------------------------------------------------
@@ -132,9 +134,11 @@ constant C_CRTROMTYPE_OPTIONAL   : std_logic_vector(15 downto 0) := x"0004";
 --       else it is a 4k window in HyperRAM or in SDRAM
 -- In case we are loading to a QNICE device, then the control and status register is located at the 4k window 0xFFFF.
 -- @TODO: See @TODO for more details about the control and status register
-constant C_CRTROMS_MAN_NUM       : natural := 0;                                       -- amount of manually loadable ROMs and carts; maximum is 16
-constant C_CRTROMS_MAN           : crtrom_buf_array := ( x"EEEE", x"EEEE",
+constant C_CRTROMS_MAN_NUM       : natural := 2;                                       -- Amount of manually loadable ROMs and carts, maximum is 16
+constant C_CRTROMS_MAN           : crtrom_buf_array := ( C_CRTROMTYPE_DEVICE, C_DEV_PRG,
+                                                         C_CRTROMTYPE_DEVICE, C_DEV_CRT,
                                                          x"EEEE");                     -- Always finish the array using x"EEEE"
+
 
 -- Automatically loaded ROMs: These ROMs are loaded before the core starts
 --
