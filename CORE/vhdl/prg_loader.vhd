@@ -40,6 +40,7 @@ architecture beh of prg_loader is
 
    -- Request and response
    signal   qnice_req_status : std_logic_vector( 3 downto 0);
+   signal   qnice_req_length : std_logic_vector(22 downto 0);
 
    signal   qnice_csr_data : std_logic_vector(15 downto 0);
    signal   qnice_csr_wait : std_logic;
@@ -47,6 +48,7 @@ architecture beh of prg_loader is
 
    -- PRG load address
    signal   prg_start : unsigned(15 downto 0);
+   signal   prg_end   : unsigned(15 downto 0);
 
    -- Communication and reset state machine (see comment directly at the state machine below)
    constant C_COMM_DELAY  : natural                  := 50;
@@ -57,11 +59,13 @@ architecture beh of prg_loader is
       RESET_ST,
       RESET_POST_ST,
       WAIT_OK_ST,
+      WRITE_END_ST,
       TRIGGER_RUN_ST
    );
 
-   signal   state : state_type                       := IDLE_ST;
-   signal   delay : natural range 0 to C_RESET_DELAY;
+   signal   state       : state_type                 := IDLE_ST;
+   signal   delay       : natural range 0 to C_RESET_DELAY;
+   signal   write_count : natural range 0 to 15;
 
    constant C_ERROR_STRINGS : string_vector(0 to 15) := (others => "OK                 \n");
 
@@ -83,7 +87,7 @@ begin
          qnice_wait_o         => qnice_csr_wait,
          qnice_csr_o          => qnice_csr,
          qnice_req_status_o   => qnice_req_status,
-         qnice_req_length_o   => open,
+         qnice_req_length_o   => qnice_req_length,
          -- for now: hardcoded as we do not really parse anything
          qnice_resp_status_i  => C_CSR_RESP_READY,
          qnice_resp_error_i   => (others => '0'),
@@ -146,6 +150,14 @@ begin
             when WAIT_OK_ST =>
                qnice_wait_o <= '0';
                if qnice_req_status = C_CSR_REQ_OK then
+                  write_count <= 1;
+                  state       <= WRITE_END_ST;
+               end if;
+
+            -- In this state, core is ready
+            when WRITE_END_ST =>
+               write_count <= write_count + 1;
+               if write_count = 0 then
                   delay <= C_COMM_DELAY;
                   state <= TRIGGER_RUN_ST;
                end if;
@@ -194,6 +206,8 @@ begin
       end if;
    end process qnice_read_proc;
 
+   prg_end <= prg_start + unsigned(qnice_req_length(15 downto 0));
+
    -- Handle the core RAM signals
    core_ram_proc : process (all)
    begin
@@ -205,6 +219,55 @@ begin
       if qnice_ce_i = '1' and unsigned(qnice_addr_i(27 downto 0)) > 1 and qnice_csr = '0' then
          ram_we_o <= qnice_we_i;
       end if;
+
+      case write_count is
+
+         when 1 =>
+            ram_addr_o <= X"002D";                                                             -- Start of Variables
+            ram_data_o <= std_logic_vector(prg_end(7 downto 0));
+            ram_we_o   <= '1';
+
+         when 3 =>
+            ram_addr_o <= X"002E";
+            ram_data_o <= std_logic_vector(prg_end(15 downto 8));
+            ram_we_o   <= '1';
+
+         when 5 =>
+            ram_addr_o <= X"002F";                                                             -- Start of Arrays
+            ram_data_o <= std_logic_vector(prg_end(7 downto 0));
+            ram_we_o   <= '1';
+
+         when 7 =>
+            ram_addr_o <= X"0030";
+            ram_data_o <= std_logic_vector(prg_end(15 downto 8));
+            ram_we_o   <= '1';
+
+         when 9 =>
+            ram_addr_o <= X"0031";                                                             -- End of Arrays
+            ram_data_o <= std_logic_vector(prg_end(7 downto 0));
+            ram_we_o   <= '1';
+
+         when 11 =>
+            ram_addr_o <= X"0032";
+            ram_data_o <= std_logic_vector(prg_end(15 downto 8));
+            ram_we_o   <= '1';
+
+         when 13 =>
+            ram_addr_o <= X"00AE";                                                             -- End of Program
+            ram_data_o <= std_logic_vector(prg_end(7 downto 0));
+            ram_we_o   <= '1';
+
+         when 15 =>
+            ram_addr_o <= X"00AF";
+            ram_data_o <= std_logic_vector(prg_end(15 downto 8));
+            ram_we_o   <= '1';
+
+         when others =>
+            null;
+
+      end case;
+
+      null;
    end process core_ram_proc;
 
 end architecture beh;
