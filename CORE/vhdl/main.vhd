@@ -59,16 +59,32 @@ entity main is
       joy_1_left_n_i         : in    std_logic;
       joy_1_right_n_i        : in    std_logic;
       joy_1_fire_n_i         : in    std_logic;
-
+      joy_1_up_n_o           : out   std_logic;
+      joy_1_down_n_o         : out   std_logic;
+      joy_1_left_n_o         : out   std_logic;
+      joy_1_right_n_o        : out   std_logic;
+      joy_1_fire_n_o         : out   std_logic;
+      joy_2_up_n_i           : in    std_logic;
+      joy_2_down_n_i         : in    std_logic;
+      joy_2_left_n_i         : in    std_logic;
+      joy_2_right_n_i        : in    std_logic;
+      joy_2_fire_n_i         : in    std_logic;
+      joy_2_up_n_o           : out   std_logic;
+      joy_2_down_n_o         : out   std_logic;
+      joy_2_left_n_o         : out   std_logic;
+      joy_2_right_n_o        : out   std_logic;
+      joy_2_fire_n_o         : out   std_logic;
       pot1_x_i               : in    std_logic_vector(7 downto 0);
       pot1_y_i               : in    std_logic_vector(7 downto 0);
+      pot2_x_i               : in    std_logic_vector(7 downto 0);
+      pot2_y_i               : in    std_logic_vector(7 downto 0);
 
       -- Video output
       video_ce_o             : out   std_logic;
       video_ce_ovl_o         : out   std_logic;
-      video_red_o            : out   std_logic_vector(3 downto 0);
-      video_green_o          : out   std_logic_vector(3 downto 0);
-      video_blue_o           : out   std_logic_vector(3 downto 0);
+      video_red_o            : out   std_logic_vector(7 downto 0);
+      video_green_o          : out   std_logic_vector(7 downto 0);
+      video_blue_o           : out   std_logic_vector(7 downto 0);
       video_vs_o             : out   std_logic;
       video_hs_o             : out   std_logic;
       video_hblank_o         : out   std_logic;
@@ -123,6 +139,8 @@ architecture synthesis of main is
    signal   cia1_pb_in  : std_logic_vector(7 downto 0);
    signal   cia1_pb_out : std_logic_vector(7 downto 0);
 
+   signal   o_audio : std_logic_vector(5 downto 0);
+
    -- the Restore key is special : it creates a non maskable interrupt (NMI)
    signal   restore_key_n : std_logic;
 
@@ -166,13 +184,14 @@ architecture synthesis of main is
    signal   iec_par_data_out    : std_logic_vector(7 downto 0);
 
    -- unprocessed video output of the VIC20 core
-   signal   o_audio : std_logic_vector(5 downto 0);
-   signal   o_hsync : std_logic;
-   signal   o_vsync : std_logic;
-
-   signal   div     : unsigned(1 downto 0);
-   signal   v20_en  : std_logic;
-   signal   div_ovl : unsigned(0 downto 0);
+   signal   vga_hs    : std_logic;
+   signal   vga_vs    : std_logic;
+   signal   vga_red   : std_logic_vector(3 downto 0);
+   signal   vga_green : std_logic_vector(3 downto 0);
+   signal   vga_blue  : std_logic_vector(3 downto 0);
+   signal   div       : unsigned(1 downto 0);
+   signal   v20_en    : std_logic;
+   signal   div_ovl   : unsigned(0 downto 0);
 
    -- clock enable to derive the VIC20's pixel clock from the core's main clock
    signal   video_ce   : std_logic;
@@ -237,8 +256,8 @@ begin
    end process hard_reset_proc;
 
 
-   video_hs_o      <= not o_hsync;
-   video_vs_o      <= not o_vsync;
+   video_hs_o      <= not vga_hs;
+   video_vs_o      <= not vga_vs;
 
    v20_en_proc : process (clk_main_i)
    begin
@@ -281,11 +300,11 @@ begin
 
          -- VGA/SCART interface
          o_ce_pix      => video_ce,
-         o_video_r     => video_red_o,
-         o_video_g     => video_green_o,
-         o_video_b     => video_blue_o,
-         o_hsync       => o_hsync,
-         o_vsync       => o_vsync,
+         o_hsync       => vga_hs,
+         o_vsync       => vga_vs,
+         o_video_r     => vga_red,
+         o_video_g     => vga_green,
+         o_video_b     => vga_blue,
          o_hblank      => video_hblank_o,
          o_vblank      => video_vblank_o,
          i_center      => "11",
@@ -324,19 +343,22 @@ begin
    -- Generate video output for the M2M framework
    --------------------------------------------------------------------------------------------------
 
+   video_red_o     <= vga_red & "0000";
+   video_green_o   <= vga_green & "0000";
+   video_blue_o    <= vga_blue & "0000";
+   video_ce_o      <= video_ce and not video_ce_d;
+   video_ce_ovl_o  <= '1' when video_retro15khz_i = '0' else
+                      not div_ovl(0);
+
    -- Clock divider: The core's pixel clock is 1/2 of the main clock
    video_ce_proc : process (clk_video_i)
    begin
       if rising_edge(clk_video_i) then
          video_ce_d <= video_ce;
-         video_ce_o <= video_ce and not video_ce_d;
-
          div_ovl    <= div_ovl + 1;
       end if;
    end process video_ce_proc;
 
-   video_ce_ovl_o  <= '1' when video_retro15khz_i = '0' else
-                      not div_ovl(0);
 
    --------------------------------------------------------------------------------------------------
    -- Keyboard- and joystick controller
@@ -356,6 +378,38 @@ begin
          key_num_i       => kb_key_num_i,
          key_pressed_n_i => kb_key_pressed_n_i,
 
+         -- Interface to the MEGA65 joysticks
+         joy_1_up_n_i    => joy_1_up_n_i,
+         joy_1_down_n_i  => joy_1_down_n_i,
+         joy_1_left_n_i  => joy_1_left_n_i,
+         joy_1_right_n_i => joy_1_right_n_i,
+         joy_1_fire_n_i  => joy_1_fire_n_i,
+
+         joy_1_up_n_o    => joy_1_up_n_o,
+         joy_1_down_n_o  => joy_1_down_n_o,
+         joy_1_left_n_o  => joy_1_left_n_o,
+         joy_1_right_n_o => joy_1_right_n_o,
+         joy_1_fire_n_o  => joy_1_fire_n_o,
+
+         joy_2_up_n_i    => joy_2_up_n_i,
+         joy_2_down_n_i  => joy_2_down_n_i,
+         joy_2_left_n_i  => joy_2_left_n_i,
+         joy_2_right_n_i => joy_2_right_n_i,
+         joy_2_fire_n_i  => joy_2_fire_n_i,
+
+         joy_2_up_n_o    => joy_2_up_n_o,
+         joy_2_down_n_o  => joy_2_down_n_o,
+         joy_2_left_n_o  => joy_2_left_n_o,
+         joy_2_right_n_o => joy_2_right_n_o,
+         joy_2_fire_n_o  => joy_2_fire_n_o,
+
+         -- Interface to the MiSTer VIC20 core that directly connects to the VIC20's CIA1 instead of
+         -- going the detour of converting the MEGA65 keystrokes into PS/2 keystrokes first.
+         -- This means, that the "fpga64_keyboard" entity of the original core is not used. Instead,
+         -- we are modifying the "vic20_inst" entity so that we can route the CIA1's ports
+         -- A and B into this keyboard driver which then emulates the behavior of the physical
+         -- C64 keyboard including the possibility to "scan" via the row, i.e. pull one or more bits of
+         -- port A to zero (one by one) and read via the "column" (i.e. from port B) or vice versa.
          cia1_pai_o      => cia1_pa_in,
          cia1_pao_i      => cia1_pa_out(0) & cia1_pa_out(6 downto 1) & cia1_pa_out(7),
          cia1_pbi_o      => cia1_pb_in,

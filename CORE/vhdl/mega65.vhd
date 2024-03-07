@@ -355,18 +355,6 @@ begin
    cart_a_o             <= (others => '0');
    cart_d_o             <= (others => '0');
 
-   main_joy_1_up_n_o    <= '1';
-   main_joy_1_down_n_o  <= '1';
-   main_joy_1_left_n_o  <= '1';
-   main_joy_1_right_n_o <= '1';
-   main_joy_1_fire_n_o  <= '1';
-   main_joy_2_up_n_o    <= '1';
-   main_joy_2_down_n_o  <= '1';
-   main_joy_2_left_n_o  <= '1';
-   main_joy_2_right_n_o <= '1';
-   main_joy_2_fire_n_o  <= '1';
-
-
    -- MEGA65's power led: By default, it is on and glows green when the MEGA65 is powered on.
    -- We switch it to blue when a long reset is detected and as long as the user keeps pressing the preset button
    main_power_led_o     <= '1';
@@ -394,7 +382,7 @@ begin
          -- Configuration options
          ---------------------------
 
-         vic20_rom_i            => '0',
+         vic20_rom_i            => '0',         -- standard
          ram_ext_i              => main_osm_control_i(C_MENU_RAM_A000) &
                                    main_osm_control_i(C_MENU_RAM_6000) &
                                    main_osm_control_i(C_MENU_RAM_4000) &
@@ -418,16 +406,33 @@ begin
          joy_1_left_n_i         => main_joy_1_left_n_i,
          joy_1_right_n_i        => main_joy_1_right_n_i,
          joy_1_fire_n_i         => main_joy_1_fire_n_i,
+         joy_1_up_n_o           => main_joy_1_up_n_o,
+         joy_1_down_n_o         => main_joy_1_down_n_o,
+         joy_1_left_n_o         => main_joy_1_left_n_o,
+         joy_1_right_n_o        => main_joy_1_right_n_o,
+         joy_1_fire_n_o         => main_joy_1_fire_n_o,
+         joy_2_up_n_i           => main_joy_2_up_n_i,
+         joy_2_down_n_i         => main_joy_2_down_n_i,
+         joy_2_left_n_i         => main_joy_2_left_n_i,
+         joy_2_right_n_i        => main_joy_2_right_n_i,
+         joy_2_fire_n_i         => main_joy_2_fire_n_i,
+         joy_2_up_n_o           => main_joy_2_up_n_o,
+         joy_2_down_n_o         => main_joy_2_down_n_o,
+         joy_2_left_n_o         => main_joy_2_left_n_o,
+         joy_2_right_n_o        => main_joy_2_right_n_o,
+         joy_2_fire_n_o         => main_joy_2_fire_n_o,
          pot1_x_i               => main_pot1_x_i,
          pot1_y_i               => main_pot1_y_i,
+         pot2_x_i               => main_pot2_x_i,
+         pot2_y_i               => main_pot2_y_i,
 
          -- Video output
          -- This is PAL 720x576 @ 50 Hz (pixel clock 27 MHz), but synchronized to main_clk (54 MHz).
          video_ce_o             => video_ce_o,
          video_ce_ovl_o         => video_ce_ovl_o,
-         video_red_o            => video_red_o(7 downto 4),
-         video_green_o          => video_green_o(7 downto 4),
-         video_blue_o           => video_blue_o(7 downto 4),
+         video_red_o            => video_red_o,
+         video_green_o          => video_green_o,
+         video_blue_o           => video_blue_o,
          video_vs_o             => video_vs_o,
          video_hs_o             => video_hs_o,
          video_hblank_o         => video_hblank_o,
@@ -448,7 +453,7 @@ begin
          conf_di_i              => qnice_conf_di,
 
          -- IEC handled by QNICE
-         iec_clk_sd_i           => qnice_clk_i,   -- "sd card write clock" for floppy drive internal dual clock RAM buffer
+         iec_clk_sd_i           => qnice_clk_i, -- "sd card write clock" for floppy drive internal dual clock RAM buffer
          iec_qnice_addr_i       => qnice_dev_addr_i,
          iec_qnice_data_i       => qnice_dev_data_i,
          iec_qnice_data_o       => qnice_iec_qnice_data,
@@ -470,10 +475,6 @@ begin
          iec_srq_n_o            => iec_srq_n_o
       ); -- main_inst
 
-   video_red_o(3 downto 0)   <= "0000";
-   video_green_o(3 downto 0) <= "0000";
-   video_blue_o(3 downto 0)  <= "0000";
-
 
    ---------------------------------------------------------------------------------------------
    -- Audio and video settings (QNICE clock domain)
@@ -486,46 +487,46 @@ begin
    -- while in the 4:3 mode we are outputting a 5:4 image. This is kind of odd, but it seemed that our 4/3 aspect ratio
    -- adjusted image looks best on a 5:4 monitor and the other way round.
    -- Not sure if this will stay forever or if we will come up with a better naming convention.
-   qnice_video_mode_o        <= C_VIDEO_SVGA_800_60 when qnice_osm_control_i(C_MENU_HDMI_800_60)    = '1' else
-                                C_VIDEO_HDMI_720_5994 when qnice_osm_control_i(C_MENU_HDMI_720_5994)  = '1' else
-                                C_VIDEO_HDMI_640_60 when qnice_osm_control_i(C_MENU_HDMI_640_60)    = '1' else
-                                C_VIDEO_HDMI_5_4_50 when qnice_osm_control_i(C_MENU_HDMI_5_4_50)    = '1' else
-                                C_VIDEO_HDMI_4_3_50 when qnice_osm_control_i(C_MENU_HDMI_4_3_50)    = '1' else
-                                C_VIDEO_HDMI_16_9_60 when qnice_osm_control_i(C_MENU_HDMI_16_9_60)   = '1' else
-                                C_VIDEO_HDMI_16_9_50;
+   qnice_video_mode_o      <= C_VIDEO_SVGA_800_60 when qnice_osm_control_i(C_MENU_HDMI_800_60)    = '1' else
+                              C_VIDEO_HDMI_720_5994 when qnice_osm_control_i(C_MENU_HDMI_720_5994)  = '1' else
+                              C_VIDEO_HDMI_640_60 when qnice_osm_control_i(C_MENU_HDMI_640_60)    = '1' else
+                              C_VIDEO_HDMI_5_4_50 when qnice_osm_control_i(C_MENU_HDMI_5_4_50)    = '1' else
+                              C_VIDEO_HDMI_4_3_50 when qnice_osm_control_i(C_MENU_HDMI_4_3_50)    = '1' else
+                              C_VIDEO_HDMI_16_9_60 when qnice_osm_control_i(C_MENU_HDMI_16_9_60)   = '1' else
+                              C_VIDEO_HDMI_16_9_50;
 
    -- Use On-Screen-Menu selections to configure several audio and video settings
    -- Video and audio mode control
-   qnice_dvi_o               <= qnice_osm_control_i(C_MENU_HDMI_DVI); -- 0=HDMI (with sound), 1=DVI (no sound)
+   qnice_dvi_o             <= qnice_osm_control_i(C_MENU_HDMI_DVI); -- 0=HDMI (with sound), 1=DVI (no sound)
 
    -- no scandoubler when using the retro 15 kHz RGB mode
-   qnice_scandoubler_o       <= (not qnice_osm_control_i(C_MENU_VGA_15KHZHSVS)) and
+   qnice_scandoubler_o     <= (not qnice_osm_control_i(C_MENU_VGA_15KHZHSVS)) and
                                 (not qnice_osm_control_i(C_MENU_VGA_15KHZCS));
 
-   qnice_audio_mute_o        <= '0';                                       -- audio is not muted
-   qnice_audio_filter_o      <= qnice_osm_control_i(C_MENU_IMPROVE_AUDIO); -- 0 = raw audio, 1 = use filters from globals.vhd
-   qnice_zoom_crop_o         <= qnice_osm_control_i(C_MENU_HDMI_ZOOM);     -- 0 = no zoom/crop
-   qnice_retro15khz_o        <= qnice_osm_control_i(C_MENU_VGA_15KHZHSVS) or qnice_osm_control_i(C_MENU_VGA_15KHZCS);
-   qnice_csync_o             <= qnice_osm_control_i(C_MENU_VGA_15KHZCS);   -- Composite sync (CSYNC)
-   qnice_osm_cfg_scaling_o   <= qnice_osm_control_i(C_MENU_OSM_SCALING);
+   qnice_audio_mute_o      <= '0';                                       -- audio is not muted
+   qnice_audio_filter_o    <= qnice_osm_control_i(C_MENU_IMPROVE_AUDIO); -- 0 = raw audio, 1 = use filters from globals.vhd
+   qnice_zoom_crop_o       <= qnice_osm_control_i(C_MENU_HDMI_ZOOM);     -- 0 = no zoom/crop
+   qnice_retro15khz_o      <= qnice_osm_control_i(C_MENU_VGA_15KHZHSVS) or qnice_osm_control_i(C_MENU_VGA_15KHZCS);
+   qnice_csync_o           <= qnice_osm_control_i(C_MENU_VGA_15KHZCS);   -- Composite sync (CSYNC)
+   qnice_osm_cfg_scaling_o <= qnice_osm_control_i(c_menu_osm_scaling);
 
    -- ascal filters that are applied while processing the input
    -- 00 : Nearest Neighbour
    -- 01 : Bilinear
    -- 10 : Sharp Bilinear
    -- 11 : Bicubic
-   qnice_ascal_mode_o        <= "00";
+   qnice_ascal_mode_o      <= "00";
 
    -- If polyphase is '1' then the ascal filter mode is ignored and polyphase filters are used instead
    -- @TODO: Right now, the filters are hardcoded in the M2M framework, we need to make them changeable inside m2m-rom.asm
-   qnice_ascal_polyphase_o   <= qnice_osm_control_i(C_MENU_CRT_EMULATION);
+   qnice_ascal_polyphase_o <= qnice_osm_control_i(C_MENU_CRT_EMULATION);
 
    -- ascal triple-buffering
    -- @TODO: Right now, the M2M framework only supports OFF, so do not touch until the framework is upgraded
-   qnice_ascal_triplebuf_o   <= '0';
+   qnice_ascal_triplebuf_o <= '0';
 
    -- Flip joystick ports (i.e. the joystick in port 2 is used as joystick 1 and vice versa)
-   qnice_flip_joyports_o     <= qnice_osm_control_i(C_MENU_FLIP_JOYS);
+   qnice_flip_joyports_o   <= qnice_osm_control_i(C_MENU_FLIP_JOYS);
 
    ---------------------------------------------------------------------------------------------
    -- Core specific device handling (QNICE clock domain, device IDs in globals.vhd)
