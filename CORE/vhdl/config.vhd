@@ -365,15 +365,15 @@ constant OPTM_S_SAVING     : string := "<Saving>";          -- the internal writ
 --             Do use a lower case \n. If you forget one of them or if you use upper case, you will run into undefined behavior.
 --          2. Start each line that contains an actual menu item (multi- or single-select) with a Space character,
 --             otherwise you will experience visual glitches.
-constant OPTM_SIZE         : natural := 73;  -- amount of items including empty lines:
+constant OPTM_SIZE         : natural := 74;  -- amount of items including empty lines:
                                              -- needs to be equal to the number of lines in OPTM_ITEMS and amount of items in OPTM_GROUPS
                                              -- IMPORTANT: If SAVE_SETTINGS is true and OPTM_SIZE changes: Make sure to re-generate and
                                              -- and re-distribute the config file. You can make a new one using M2M/tools/make_config.sh
 
 -- Net size of the Options menu on the screen in characters (excluding the frame, which is hardcoded to two characters)
 -- Without submenus: Use OPTM_SIZE as height, otherwise count how large the actually visible main menu is.
-constant OPTM_DX           : natural := 23;
-constant OPTM_DY           : natural := 24;
+constant OPTM_DX           : natural := 24;
+constant OPTM_DY           : natural := 28;
 
 constant OPTM_ITEMS        : string :=
 
@@ -385,20 +385,21 @@ constant OPTM_ITEMS        : string :=
    " Expansion Port\n"         &
    "\n"                        &
 
-   " RAM: %s\n"                &  -- RAM submenu
+   " RAM:\n"                   &  -- RAM submenu (without summary)
    " RAM expansions\n"         &
    "\n"                        &
-   " $0400(3KB)\n"             &
-   " $2000(8KB)\n"             &
-   " $4000(8KB)\n"             &
-   " $6000(8KB)\n"             &
-   " $A000(8KB)\n"             &
+   " 0x0400 (3KB)\n"           &
+   " 0x2000 (8KB)\n"           &
+   " 0x4000 (8KB)\n"           &
+   " 0x6000 (8KB)\n"           &
+   " 0xA000 (8KB)\n"           &
    "\n"                        &
    " Back to main menu\n"      &
 
    " Simulate cartridge:\n"    &
    " CRT:%s\n"                 &  -- %s will be replaced by OPTM_S_CRTROM when no cartridge is loaded, otherwise by the filename of the cartridge
 
+   "\n"                        &
    " VIC20 Configuration\n"    &
    "\n"                        &
    " Flip joystick ports\n"    &
@@ -501,6 +502,8 @@ constant OPTM_GROUPS : OPTM_GTYPE := (
 
    OPTM_G_HEADLINE,                                         -- Simulate cartridge
    OPTM_G_MOUNT_CRT     + OPTM_G_LOAD_ROM,                  -- CRT:%s
+
+   OPTM_G_LINE,
    OPTM_G_HEADLINE,                                         -- VIC20 Configuration
    OPTM_G_LINE,
    OPTM_G_FLIP_JOYS     + OPTM_G_SINGLESEL,                 -- Flip joystick ports
