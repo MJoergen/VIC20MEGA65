@@ -385,7 +385,7 @@ constant OPTM_ITEMS        : string :=
    " Expansion Port\n"         &
    "\n"                        &
 
-   " RAM:\n"                   &  -- RAM submenu (without summary)
+   " RAM:%s\n"                 &  -- %s will be replaced by a custom summary, see m2m-rom.asm
    " RAM expansions\n"         &
    "\n"                        &
    " 0x0400 (3KB)\n"           &

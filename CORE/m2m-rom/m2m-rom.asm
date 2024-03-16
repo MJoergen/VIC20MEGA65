@@ -42,6 +42,39 @@ START_FIRMWARE  RBRA    START_SHELL, 1
 ; Core specific callback functions: Submenus
 ; ----------------------------------------------------------------------------
 
+RAM_00000_STR   .ASCII_W " RAM: standard    "
+RAM_00001_STR   .ASCII_W " RAM: 3kB (0400)  "
+RAM_00010_STR   .ASCII_W " RAM: 8kB (2000)  "
+RAM_00011_STR   .ASCII_W " RAM: 04,20       "
+RAM_00100_STR   .ASCII_W " RAM: 8kB (4000)  "
+RAM_00101_STR   .ASCII_W " RAM: 04,40       "
+RAM_00110_STR   .ASCII_W " RAM: 20,40       "
+RAM_00111_STR   .ASCII_W " RAM: 04,20,40    "
+RAM_01000_STR   .ASCII_W " RAM: 8kB (6000)  "
+RAM_01001_STR   .ASCII_W " RAM: 04,60       "
+RAM_01010_STR   .ASCII_W " RAM: 20,60       "
+RAM_01011_STR   .ASCII_W " RAM: 04,20,60    "
+RAM_01100_STR   .ASCII_W " RAM: 40,60       "
+RAM_01101_STR   .ASCII_W " RAM: 04,40,60    "
+RAM_01110_STR   .ASCII_W " RAM: 20,40,60    "
+RAM_01111_STR   .ASCII_W " RAM: 04,20,40,60 "
+RAM_10000_STR   .ASCII_W " RAM: 8kB (A000)  "
+RAM_10001_STR   .ASCII_W " RAM: 04,A0       "
+RAM_10010_STR   .ASCII_W " RAM: 20,A0       "
+RAM_10011_STR   .ASCII_W " RAM: 04,20,A0    "
+RAM_10100_STR   .ASCII_W " RAM: 40,A0       "
+RAM_10101_STR   .ASCII_W " RAM: 04,40,A0    "
+RAM_10110_STR   .ASCII_W " RAM: 20,40,A0    "
+RAM_10111_STR   .ASCII_W " RAM: 04,20,40,A0 "
+RAM_11000_STR   .ASCII_W " RAM: 60,A0       "
+RAM_11001_STR   .ASCII_W " RAM: 04,60,A0    "
+RAM_11010_STR   .ASCII_W " RAM: 20,60,A0    "
+RAM_11011_STR   .ASCII_W " RAM: 04,20,60,A0 "
+RAM_11100_STR   .ASCII_W " RAM: 40,60,A0    "
+RAM_11101_STR   .ASCII_W " RAM: 04,40,60,A0 "
+RAM_11110_STR   .ASCII_W " RAM: 20,40,60,A0 "
+RAM_11111_STR   .ASCII_W " RAM: max         "
+
 ; SUBMENU_SUMMARY callback function:
 ;
 ; Called when displaying the main menu for every %s that is found in the
@@ -58,7 +91,62 @@ START_FIRMWARE  RBRA    START_SHELL, 1
 ;       string pointer to completely new headline (do not modify/re-use R8)
 ;   R9, R10: unchanged
 
-SUBMENU_SUMMARY XOR     R8, R8                  ; R8 = 0 = no custom string
+SUBMENU_SUMMARY INCRB
+                MOVE    R9, R0
+                MOVE    R10, R1
+                XOR     R2, R2  ; Future return value, assume default
+
+; Detect whether this is the RAM expansion submenu group
+_SS_LOOP        CMP     R9, R10
+                RBRA    _SS_END, Z
+                MOVE    @R9++, R11
+
+                AND     0x00FF, R11
+                CMP     R11, 0x00FF
+                RBRA    _SS_END, Z
+
+                CMP     R11, VIC20_OPTM_G_EXP_PORT
+                RBRA    _SS_LOOP, !Z
+
+; Get the settings and store all five bits in R2
+                XOR     R2, R2
+                MOVE    VIC20_OSM_RAM_A000, R8
+                RSUB    M2M$GET_SETTING, 1
+                SHR     1, R9
+                SHL     1, R2
+
+                MOVE    VIC20_OSM_RAM_6000, R8
+                RSUB    M2M$GET_SETTING, 1
+                SHR     1, R9
+                SHL     1, R2
+
+                MOVE    VIC20_OSM_RAM_4000, R8
+                RSUB    M2M$GET_SETTING, 1
+                SHR     1, R9
+                SHL     1, R2
+
+                MOVE    VIC20_OSM_RAM_2000, R8
+                RSUB    M2M$GET_SETTING, 1
+                SHR     1, R9
+                SHL     1, R2
+
+                MOVE    VIC20_OSM_RAM_0400, R8
+                RSUB    M2M$GET_SETTING, 1
+                SHR     1, R9
+                SHL     1, R2
+
+; Multiply by 19
+                MOVE    R2, R3
+                SHL     1, R2  ; x2
+                ADD     R2, R3
+                SHL     3, R2  : x8
+                ADD     R3, R2
+                ADD     RAM_00000_STR, R2
+
+_SS_END         MOVE    R2, R8
+                MOVE    R1, R10
+                MOVE    R0, R9
+                DECRB
                 RET
 
 ; ----------------------------------------------------------------------------
