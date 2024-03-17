@@ -139,7 +139,7 @@ _SS_LOOP        CMP     R9, R10
                 MOVE    R2, R3
                 SHL     1, R2  ; x2
                 ADD     R2, R3
-                SHL     3, R2  : x8
+                SHL     3, R2  ; x8
                 ADD     R3, R2
                 ADD     RAM_00000_STR, R2
 
