@@ -157,7 +157,7 @@ begin
             -- In this state, core is ready
             when WRITE_END_ST =>
                write_count <= write_count + 1;
-               if write_count = 0 then
+               if write_count = 15 then
                   delay <= C_COMM_DELAY;
                   state <= TRIGGER_RUN_ST;
                end if;
