@@ -175,7 +175,7 @@ FILTER_FILES    INCRB
 
                 ; Context: Mount virtual drive
                 CMP     CTX_MOUNT_DISKIMG, R10
-                RBRA    _FFILES_RET_0, !Z       ; do not filter in other CTXs
+                RBRA    _FFILES_1, !Z
 
                 ; does this file have the ".D64" file extension?
                 MOVE    VIC20_IMGFILE_D64, R9
