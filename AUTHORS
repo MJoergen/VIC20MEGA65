@@ -1,42 +1,34 @@
-YOUR PROJECT NAME for MEGA65 aka GITHUB REPO SHORT NAME
-=======================================================
+VIC 20 for MEGA65 aka VIC20MEGA65
+=====================================
 
-done in YEAR by YOUR NAME
+done in 2024 by
+    * MJoergen   github.com/MJoergen
 
-YOUR WEBSITE
-YOUR GITHUB SITE
+VIC20MEGA65 is licensed under the terms of GNU/GPL v3, for more information please read the file LICENSE.
+Parts of VIC20MEGA65 are licensed under other Free-software licenses as described in the source code.
 
-REPO SHORT NAME is licensed under the terms of GNU/GPL v3, for more information please read the file LICENSE
-Parts of REPO SHORT NAME are licensed under other Free-software licenses as described in the source code
+Special thanks for countless hours of testing, sparring, advise and other
+valuable support (in alphabetical order): deft, sy2002.
 
-GITHUB REPO SHORT NAME:
------------------------
+Special thanks to Adam Barnes for not only creating the most awesome Open Source HDMI core on the
+planet (see below) but also for patiently sharing his wisdom and tirelessly supporting us in improving
+our HyperRAM controller.
 
-  GITHUB REPO SHORT NAME is a port of MISTER'S REPO SHORT NAME
+VIC20MEGA65:
+----------
+
+  VIC20MEGA65 is a port of MiSTer's VIC20_MiSTer
       done by the MiSTer Development Team
-      Original GitHub Repository: https://github.com/MiSTer-devel/MISTER-REPO-LINK
+      Original GitHub Repository: https://github.com/MiSTer-devel/VIC20_MiSTer
       Significant contributors:
-      * NAME THE MAIN
-      * CONTRIBUTORS
-      * ON MiSTer's SIDE
+      * sorgelig
 
-  MISTER'S REPO SHORT NAME is a port of MiST's MiST NAME/OTHER SOURCE IN CASE MiSTer ported it from MIST/OTHER SOURCE
-      done by the MiST Development Team
-      Original GitHub Repository: https://github.com/mist-devel/MIST-REPO-LINK OR OTHER SOURCE
-      Significant contributors:
-      * NAME THE MAIN
-      * CONTRIBUTORS
-      * ON MiST's SIDE (OR OTHER SOURCE)
+  The 6510/6502 CPU is based on T65
+      done by Daniel Wallner, Mike Johnson, Wolfgang Scherr, Morten Leikvoll
 
-  LIST SOME MORE SIGNIFICANT / MAIN AUTHERS OF SUBMODULES
-  HAVE A LOOK AT THIS EXAMPLE HOW TO: https://github.com/sy2002/gbc4mega65/blob/master/AUTHORS
+Other than that and our own work, VIC20MEGA65 uses:
+-------------------------------------------------
 
-Other than that and my own work, REPO SHORT NAME uses:
-------------------------------------------------------
-
-DO NOT FORGET TO CREDIT EVERYTHING YOU USE FROM OTHER PEOPLE HERE
-THE FOLLOWING LIST NEEDS ALWAYS TO BE PART OF YOUR LIST:
-  
   * MiSTer2MEGA65 by The MiSTer2MEGA65 Development Team
     https://github.com/sy2002/MiSTer2MEGA65
 
@@ -46,13 +38,10 @@ THE FOLLOWING LIST NEEDS ALWAYS TO BE PART OF YOUR LIST:
   * Various MEGA65 drivers taken from the MEGA65 VHDL source by Paul Gardner-Stephen
     https://github.com/MEGA65/mega65-core
 
-  * VGA Timing Generator, done by Scott Larson
-    https://www.digikey.com/eewiki/pages/viewpage.action?pageId=15925278
-
-  * VGA to HDMI converter IP core, done by Adam Barnes
+  * HDMI IP core, done by Adam Barnes
     https://github.com/amb5l/tyto2
 
-  * AVALON SCALER used for scaling to 720p for HDMI, done by temlib.org
+  * AVALON SCALER used for scaling on HDMI, done by temlib.org
     http://temlib.org/site/?page_id=10
 
   * HyperRAM controller, done by MJoergen
@@ -60,6 +49,12 @@ THE FOLLOWING LIST NEEDS ALWAYS TO BE PART OF YOUR LIST:
 
   * Debouncer: I/O debouncing used for the joysticks, done by Scott Larson
     https://www.digikey.com/eewiki/pages/viewpage.action?pageId=4980758
+
+  * Optimal choice of MiSTer video post-processing filters, done by KiDra
+    https://github.com/KiDraDragon
+
+  * RTC GEOS driver: CP-ClockF83_1.3.D64, by Jörg Sproß
+    https://retroport.de/hardware-b-c/   (scroll down to: "CP-Uhr")
 
   * Anikki-16x16 font, archived and provided by k80w
     https://github.com/k80w/consolefonts
@@ -69,3 +64,17 @@ THE FOLLOWING LIST NEEDS ALWAYS TO BE PART OF YOUR LIST:
 
   * PSF font to C include file converter psftools-1.1.1 by John Elliott
     https://www.seasip.info/Unix/PSF/
+
+The following resources and tools were invaluable for developing VIC20MEGA65:
+---------------------------------------------------------------------------
+
+  * Book "Die Floppy 1541" by Karsten Schramm
+    Special thanks to Spiro Trikaliotis, who made it legally available online:
+    https://spiro.trikaliotis.net/Book#vic1541
+
+  * All About Your 1541 by Ninja/The Dreams:
+    https://www.the-dreams.de/aay.html
+
+  * "Emulator file formats", chapter 17 of the Vice emulator's user manual:
+    https://vice-emu.sourceforge.io/vice_17.html#SEC351
+
