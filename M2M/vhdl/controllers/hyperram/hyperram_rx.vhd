@@ -58,7 +58,7 @@ begin
       generic map (
          IDELAY_TYPE           => "FIXED",
          DELAY_SRC             => "IDATAIN",
-         IDELAY_VALUE          => 20,    -- Number of taps.
+         IDELAY_VALUE          => 19,    -- Number of taps.
          HIGH_PERFORMANCE_MODE => "TRUE",
          SIGNAL_PATTERN        => "CLOCK",
          REFCLK_FREQUENCY      => 200.0, -- Each tap on average 5/32 ns.

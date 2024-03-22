@@ -237,6 +237,7 @@ architecture synthesis of mega65_core is
 
    signal   main_reset_from_prgloader : std_logic;
    signal   main_prg_trigger_run      : std_logic;
+   signal   main_reset_from_crtloader : std_logic;
 
    ---------------------------------------------------------------------------------------------
    -- qnice_clk
@@ -291,6 +292,26 @@ architecture synthesis of mega65_core is
    signal   qnice_reset_from_prgloader : std_logic;
    signal   qnice_prg_trigger_run      : std_logic;
 
+   -- QNICE signals passed down to crt_loader.vhd to handle CRT files
+   signal   qnice_crt_loader_ce   : std_logic;
+   signal   qnice_crt_loader_we   : std_logic;
+   signal   qnice_crt_loader_data : std_logic_vector(15 downto 0);
+   signal   qnice_crt_loader_wait : std_logic;
+   signal   qnice_crt_ram_we      : std_logic;
+   signal   qnice_crt_ram_addr    : std_logic_vector(15 downto 0);
+   signal   qnice_crt_ram_d_to    : std_logic_vector(7 downto 0);
+   signal   qnice_reset_from_crtloader : std_logic;
+
+   signal   qnice_hr_write         : std_logic;
+   signal   qnice_hr_read          : std_logic;
+   signal   qnice_hr_address       : std_logic_vector(31 downto 0);
+   signal   qnice_hr_writedata     : std_logic_vector(15 downto 0);
+   signal   qnice_hr_byteenable    : std_logic_vector( 1 downto 0);
+   signal   qnice_hr_burstcount    : std_logic_vector( 7 downto 0);
+   signal   qnice_hr_readdata      : std_logic_vector(15 downto 0);
+   signal   qnice_hr_readdatavalid : std_logic;
+   signal   qnice_hr_waitrequest   : std_logic;
+
 begin
 
    -- MMCME2_ADV clock generators:
@@ -307,17 +328,6 @@ begin
    main_rst_o           <= main_rst;
    video_clk_o          <= video_clk;
    video_rst_o          <= video_rst;
-
-   ---------------------------------------------------------------------------------------------
-   -- hr_clk (HyperRAM clock)
-   ---------------------------------------------------------------------------------------------
-
-   hr_core_write_o      <= '0';
-   hr_core_read_o       <= '0';
-   hr_core_address_o    <= (others => '0');
-   hr_core_writedata_o  <= (others => '0');
-   hr_core_byteenable_o <= (others => '0');
-   hr_core_burstcount_o <= (others => '0');
 
    ---------------------------------------------------------------------------------------------
    -- main_clk (VIC20 MiSTer Core clock)
@@ -373,7 +383,7 @@ begin
          -- see RESET SEMANTICS in main.vhd
          -- reset_soft_i minimum pulse length is 32 clock cycles
          reset_soft_i           => main_reset_core_i,
-         reset_hard_i           => main_reset_m2m_i or main_reset_from_prgloader,
+         reset_hard_i           => main_reset_m2m_i or main_reset_from_prgloader or main_reset_from_crtloader,
 
          pause_i                => main_pause_core_i,
          trigger_run_i          => main_prg_trigger_run,
@@ -383,6 +393,7 @@ begin
          ---------------------------
 
          vic20_rom_i            => '0',         -- standard
+         ram_ext_ro_i           => "00000",
          ram_ext_i              => main_osm_control_i(C_MENU_RAM_A000) &
                                    main_osm_control_i(C_MENU_RAM_6000) &
                                    main_osm_control_i(C_MENU_RAM_4000) &
@@ -545,6 +556,8 @@ begin
       qnice_iec_mount_buf_ram_we <= '0';
       qnice_prg_qnice_ce         <= '0';
       qnice_prg_qnice_we         <= '0';
+      qnice_crt_loader_ce        <= '0';
+      qnice_crt_loader_we        <= '0';
 
       case qnice_dev_id_i is
 
@@ -574,6 +587,16 @@ begin
             qnice_prg_qnice_we <= qnice_dev_we_i;
             qnice_dev_data_o   <= qnice_prg_qnice_data;
             qnice_dev_wait_o   <= qnice_prg_wait;
+
+         -- SW cartridges (*.CRT)
+         when C_DEV_CRT =>
+            qnice_conf_ai       <= qnice_crt_ram_addr;
+            qnice_conf_wr       <= qnice_crt_ram_we;
+            qnice_conf_di       <= qnice_crt_ram_d_to;
+            qnice_crt_loader_ce <= qnice_dev_ce_i;
+            qnice_crt_loader_we <= qnice_dev_we_i;
+            qnice_dev_data_o    <= qnice_crt_loader_data;
+            qnice_dev_wait_o    <= qnice_crt_loader_wait;
 
          when others =>
             null;
@@ -623,6 +646,36 @@ begin
          core_triggerrun_o => qnice_prg_trigger_run
       ); -- prg_loader_inst
 
+   -- Handle SW based cartridges, aka *.CRT files
+   crt_loader_inst : entity work.crt_loader
+      generic map (
+         G_BASE_ADDRESS => C_HMAP_CRT(9 downto 0) & X"000"
+      )
+      port map (
+         clk_i              => qnice_clk_i,
+         rst_i              => qnice_rst_i,
+         loader_addr_i      => qnice_dev_addr_i,
+         loader_data_i      => qnice_dev_data_i,
+         loader_ce_i        => qnice_crt_loader_ce,
+         loader_we_i        => qnice_crt_loader_we,
+         loader_data_o      => qnice_crt_loader_data,
+         loader_wait_o      => qnice_crt_loader_wait,
+         core_reset_o       => qnice_reset_from_crtloader,
+         core_ram_we_o      => qnice_crt_ram_we,
+         core_ram_addr_o    => qnice_crt_ram_addr,
+         core_ram_data_o    => qnice_crt_ram_d_to,
+         hr_write_o         => qnice_hr_write,
+         hr_read_o          => qnice_hr_read,
+         hr_address_o       => qnice_hr_address,
+         hr_writedata_o     => qnice_hr_writedata,
+         hr_byteenable_o    => qnice_hr_byteenable,
+         hr_burstcount_o    => qnice_hr_burstcount,
+         hr_readdata_i      => qnice_hr_readdata,
+         hr_readdatavalid_i => qnice_hr_readdatavalid,
+         hr_waitrequest_i   => qnice_hr_waitrequest
+      ); -- crt_loader_inst
+
+
    ---------------------------------------------------------------------------------------------
    -- Dual Clocks
    ---------------------------------------------------------------------------------------------
@@ -639,20 +692,54 @@ begin
          dest_out(0) => qnice_reset_for_prgloader
       ); -- cdc_main2qnice_inst
 
-
    -- Clock Domain Crossing: QNICE -> CORE
    cdc_qnice2main_inst : component xpm_cdc_array_single
       generic map (
-         WIDTH => 2
+         WIDTH => 3
       )
       port map (
          src_clk     => qnice_clk_i,
          src_in(0)   => qnice_reset_from_prgloader,
          src_in(1)   => qnice_prg_trigger_run,
+         src_in(2)   => qnice_reset_from_crtloader,
          dest_clk    => main_clk_o,
          dest_out(0) => main_reset_from_prgloader,
-         dest_out(1) => main_prg_trigger_run
+         dest_out(1) => main_prg_trigger_run,
+         dest_out(2) => main_reset_from_crtloader
       ); -- cdc_qnice2main_inst
+
+   avm_fifo_inst : entity work.avm_fifo
+      generic map (
+         G_WR_DEPTH     => 16,
+         G_RD_DEPTH     => 16,
+         G_FILL_SIZE    => 1,
+         G_ADDRESS_SIZE => 32,
+         G_DATA_SIZE    => 16
+      )
+      port map (
+         s_clk_i               => qnice_clk_i,
+         s_rst_i               => qnice_rst_i,
+         s_avm_waitrequest_o   => qnice_hr_waitrequest,
+         s_avm_write_i         => qnice_hr_write,
+         s_avm_read_i          => qnice_hr_read,
+         s_avm_address_i       => qnice_hr_address,
+         s_avm_writedata_i     => qnice_hr_writedata,
+         s_avm_byteenable_i    => qnice_hr_byteenable,
+         s_avm_burstcount_i    => qnice_hr_burstcount,
+         s_avm_readdata_o      => qnice_hr_readdata,
+         s_avm_readdatavalid_o => qnice_hr_readdatavalid,
+         m_clk_i               => hr_clk_i,
+         m_rst_i               => hr_rst_i,
+         m_avm_waitrequest_i   => hr_core_waitrequest_i,
+         m_avm_write_o         => hr_core_write_o,
+         m_avm_read_o          => hr_core_read_o,
+         m_avm_address_o       => hr_core_address_o,
+         m_avm_writedata_o     => hr_core_writedata_o,
+         m_avm_byteenable_o    => hr_core_byteenable_o,
+         m_avm_burstcount_o    => hr_core_burstcount_o,
+         m_avm_readdata_i      => hr_core_readdata_i,
+         m_avm_readdatavalid_i => hr_core_readdatavalid_i
+      ); -- avm_fifo_inst
 
 end architecture synthesis;
 
