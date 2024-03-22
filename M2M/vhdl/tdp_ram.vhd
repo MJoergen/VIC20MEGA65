@@ -11,7 +11,8 @@ entity tdp_ram is
       DATA_WIDTH   : positive;
       ROM_PRELOAD  : boolean := false;
       ROM_FILE     : string  := "";
-      ROM_FILE_HEX : boolean := false
+      ROM_FILE_HEX : boolean := false;
+      ROM_OFFSET   : natural := 0
    );
    port (
       clock_a   : in  std_logic;
@@ -43,6 +44,7 @@ architecture synthesis of tdp_ram is
       variable i           : natural := 0;
    begin
       file_open(ramfile, ramfilename);
+      ram_data := (others => (others => '0'));
       while not endfile(ramfile) loop
          readline(ramfile, ramfileline);
          if ROM_FILE_HEX then
@@ -50,7 +52,7 @@ architecture synthesis of tdp_ram is
          else
             read(ramfileline, bitvec);
          end if;
-         ram_data(i) := to_stdlogicvector(bitvec);
+         ram_data(i + ROM_OFFSET) := to_stdlogicvector(bitvec);
          i := i + 1;
       end loop;
       file_close(ramfile);

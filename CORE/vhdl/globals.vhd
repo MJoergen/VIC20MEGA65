@@ -87,7 +87,7 @@ constant C_DEV_PRG            : std_logic_vector(15 downto 0) := x"0104";     --
 ----------------------------------------------------------------------------------------------------------
 
 constant C_HMAP_M2M           : std_logic_vector(15 downto 0) := x"0000";     -- Reserved for the M2M framework
-constant C_HMAP_VIC20         : std_logic_vector(15 downto 0) := x"0200";     -- Start address reserved for core
+constant C_HMAP_CRT           : std_logic_vector(15 downto 0) := x"0200";     -- Start address reserved for core
 
 ----------------------------------------------------------------------------------------------------------
 -- Virtual Drive Management System

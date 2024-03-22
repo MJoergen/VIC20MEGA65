@@ -38,6 +38,7 @@ entity main is
 
       -- Select VIC20's ROM: 0=Custom, 1=Standard
       vic20_rom_i            : in    std_logic;
+      ram_ext_ro_i           : in    std_logic_vector(4 downto 0);
       ram_ext_i              : in    std_logic_vector(4 downto 0);
       center_i               : in    std_logic_vector(1 downto 0);
 
@@ -279,7 +280,7 @@ begin
          i_reset       => reset_soft_i or reset_hard_i,
          i_restore_n   => restore_key_n,
          o_p2h         => open,
-         i_ram_ext_ro  => "00000",   -- read-only region if set
+         i_ram_ext_ro  => ram_ext_ro_i,   -- read-only region if set
          i_ram_ext     => ram_ext_i, -- at $A000(8k),$6000(8k),$4000(8k),$2000(8k),$0400(3k)
          i_extmem_en   => '0',
          o_extmem_sel  => open,
