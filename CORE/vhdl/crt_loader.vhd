@@ -125,6 +125,42 @@ architecture synthesis of crt_loader is
    signal   parse_reset : std_logic;
    signal   cache_reset : std_logic;
 
+   attribute mark_debug : string;
+   attribute mark_debug of loader_addr_i      : signal is "true";
+   attribute mark_debug of loader_data_i      : signal is "true";
+   attribute mark_debug of loader_ce_i        : signal is "true";
+   attribute mark_debug of loader_we_i        : signal is "true";
+   attribute mark_debug of loader_data_o      : signal is "true";
+   attribute mark_debug of loader_wait_o      : signal is "true";
+   attribute mark_debug of core_ram_we_o      : signal is "true";
+   attribute mark_debug of core_ram_addr_o    : signal is "true";
+   attribute mark_debug of core_ram_data_o    : signal is "true";
+   attribute mark_debug of core_reset_o       : signal is "true";
+   attribute mark_debug of hr_write_o         : signal is "true";
+   attribute mark_debug of hr_read_o          : signal is "true";
+   attribute mark_debug of hr_address_o       : signal is "true";
+   attribute mark_debug of hr_writedata_o     : signal is "true";
+   attribute mark_debug of hr_byteenable_o    : signal is "true";
+   attribute mark_debug of hr_burstcount_o    : signal is "true";
+   attribute mark_debug of hr_readdata_i      : signal is "true";
+   attribute mark_debug of hr_readdatavalid_i : signal is "true";
+   attribute mark_debug of hr_waitrequest_i   : signal is "true";
+   attribute mark_debug of cart_bank_laddr    : signal is "true";
+   attribute mark_debug of cart_bank_raddr    : signal is "true";
+   attribute mark_debug of cart_bank_size     : signal is "true";
+   attribute mark_debug of cart_bank_wr       : signal is "true";
+   attribute mark_debug of parse_reset        : signal is "true";
+   attribute mark_debug of cache_reset        : signal is "true";
+   attribute mark_debug of csr                : signal is "true";
+   attribute mark_debug of csr_wait           : signal is "true";
+   attribute mark_debug of csr_data           : signal is "true";
+   attribute mark_debug of req_status         : signal is "true";
+   attribute mark_debug of req_length         : signal is "true";
+   attribute mark_debug of req_valid          : signal is "true";
+   attribute mark_debug of resp_status        : signal is "true";
+   attribute mark_debug of resp_error         : signal is "true";
+   attribute mark_debug of resp_address       : signal is "true";
+
 begin
 
    -- Handle the generic framework CSR registers

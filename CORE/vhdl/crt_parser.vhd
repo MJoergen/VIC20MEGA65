@@ -136,6 +136,39 @@ architecture synthesis of crt_parser is
       return swapped_v;
    end function bswap;
 
+--   attribute mark_debug : string;
+--   attribute mark_debug of req_start_i         : signal is "true";
+--   attribute mark_debug of req_address_i       : signal is "true";
+--   attribute mark_debug of req_length_i        : signal is "true";
+--   attribute mark_debug of resp_status_o       : signal is "true";
+--   attribute mark_debug of resp_error_o        : signal is "true";
+--   attribute mark_debug of resp_address_o      : signal is "true";
+--   attribute mark_debug of avm_write_o         : signal is "true";
+--   attribute mark_debug of avm_read_o          : signal is "true";
+--   attribute mark_debug of avm_address_o       : signal is "true";
+--   attribute mark_debug of avm_writedata_o     : signal is "true";
+--   attribute mark_debug of avm_byteenable_o    : signal is "true";
+--   attribute mark_debug of avm_burstcount_o    : signal is "true";
+--   attribute mark_debug of avm_readdata_i      : signal is "true";
+--   attribute mark_debug of avm_readdatavalid_i : signal is "true";
+--   attribute mark_debug of avm_waitrequest_i   : signal is "true";
+--   attribute mark_debug of cart_bank_laddr_o   : signal is "true";
+--   attribute mark_debug of cart_bank_size_o    : signal is "true";
+--   attribute mark_debug of cart_bank_num_o     : signal is "true";
+--   attribute mark_debug of cart_bank_raddr_o   : signal is "true";
+--   attribute mark_debug of cart_bank_wr_o      : signal is "true";
+--   attribute mark_debug of cart_loading_o      : signal is "true";
+--   attribute mark_debug of cart_id_o           : signal is "true";
+--   attribute mark_debug of cart_exrom_o        : signal is "true";
+--   attribute mark_debug of cart_game_o         : signal is "true";
+--   attribute mark_debug of cart_size_o         : signal is "true";
+--   attribute mark_debug of state               : signal is "true";
+--   attribute mark_debug of wide_readdata       : signal is "true";
+--   attribute mark_debug of wide_readdata_valid : signal is "true";
+--   attribute mark_debug of read_pos            : signal is "true";
+--   attribute mark_debug of req_address         : signal is "true";
+--   attribute mark_debug of end_address         : signal is "true";
+
 begin
 
    -- Gather together 16 bytes of data.

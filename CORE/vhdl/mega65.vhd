@@ -717,9 +717,9 @@ begin
 
    avm_fifo_inst : entity work.avm_fifo
       generic map (
-         G_WR_DEPTH     => 16,
-         G_RD_DEPTH     => 16,
-         G_FILL_SIZE    => 1,
+         G_WR_DEPTH     => 32,
+         G_RD_DEPTH     => 32,
+         G_FILL_SIZE    => 6,
          G_ADDRESS_SIZE => 32,
          G_DATA_SIZE    => 16
       )
